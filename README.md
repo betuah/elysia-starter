@@ -12,7 +12,7 @@ Capabilities already in this starter (details in linked docs):
 - **Database & migrations** — Postgres only (Drizzle); schema by domain under `src/db/schema/`; `bun run db:migrate` (or boot with `RUN_MIGRATIONS=true`) — [docs/database.md](docs/database.md)
 - **Module-based** — feature folders with layered `index` / `model` / `service` / `repository` — [docs/modules.md](docs/modules.md)
 - **API envelope** — uniform `{ code, message, data }`; lists with `meta`; validation `errors[]` via `ok` / `okList` / `failT` — [docs/api-response.md](docs/api-response.md)
-- **Security** — CORS, CSRF (Better Auth origin/SameSite), optional captcha, security headers, rate limit, Elysia input `sanitize`, public DTOs — [docs/security.md](docs/security.md)
+- **Security** — CORS, CSRF (Better Auth origin/SameSite), optional captcha, security headers, optional rate limit (`RATE_LIMIT_ENABLED`), Elysia input `sanitize`, public DTOs — [docs/security.md](docs/security.md)
 - **Email templating** — React Email (`bun run email`) + SMTP / console mock — [docs/email.md](docs/email.md)
 - **i18n** — `en` + `id`; cookie / query / `Accept-Language` — [docs/i18n.md](docs/i18n.md)
 - **Docs gating** — Scalar `/docs`, auth reference `/api/auth/reference`; `DOCS_ENABLED` + Basic Auth (`DOCS_BASIC_AUTH_*`; required in production when docs on) — [docs/openapi-docs.md](docs/openapi-docs.md)

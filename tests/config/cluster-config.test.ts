@@ -29,16 +29,18 @@ describe("config.cluster", () => {
 		expect(serveOptions.reusePort).toBe(true)
 	})
 
-	it("warns about per-process rate limits when workers > 1", () => {
+	it("warns about per-process rate limits when workers > 1 and rate limit is on", () => {
 		const warnings: string[] = []
 		const original = console.warn
 		console.warn = (...args: unknown[]) => {
 			warnings.push(args.map(String).join(" "))
 		}
 		try {
-			warnClusterRateLimitMemory(1)
+			warnClusterRateLimitMemory(1, true)
 			expect(warnings).toHaveLength(0)
-			warnClusterRateLimitMemory(4)
+			warnClusterRateLimitMemory(4, false)
+			expect(warnings).toHaveLength(0)
+			warnClusterRateLimitMemory(4, true)
 			expect(warnings.some((line) => line.includes("per-process"))).toBe(true)
 		} finally {
 			console.warn = original

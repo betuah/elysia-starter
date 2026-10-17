@@ -140,7 +140,7 @@ export const auth = betterAuth({
 		updateAge: 60 * 60 * 24,
 	},
 	rateLimit: {
-		enabled: env.NODE_ENV !== "test",
+		enabled: env.RATE_LIMIT_ENABLED,
 		window: 60,
 		max: 100,
 		storage: "memory",

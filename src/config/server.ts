@@ -6,7 +6,7 @@ import { stripNullBytes } from "../lib/sanitize"
 /**
  * Bun `serve` options applied via `new Elysia({ serve })`.
  *
- * - `maxRequestBodySize` — bytes (Bun default is 128 MiB; starter default is tighter)
+ * - `maxRequestBodySize` — bytes from `MAX_BODY_SIZE_MIB` (or legacy `MAX_BODY_SIZE`); default 1 MiB
  * - `idleTimeout` — seconds of connection inactivity before Bun closes the socket
  *   (Bun max 255; `0` disables). Elysia's Bun adapter also defaults this to 30.
  *

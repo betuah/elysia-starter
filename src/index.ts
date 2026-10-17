@@ -30,7 +30,7 @@ const clustered = shouldUseCluster(workers, env.NODE_ENV)
 
 if (clustered && cluster.isPrimary) {
 	warnClusterPlatform(workers)
-	warnClusterRateLimitMemory(workers)
+	warnClusterRateLimitMemory(workers, env.RATE_LIMIT_ENABLED)
 
 	// Not in the docs sample — starter needs one migrate before workers open the DB.
 	if (env.RUN_MIGRATIONS) {

@@ -18,7 +18,7 @@ bun run start
 
 ### Rate limiting + cluster
 
-The starter’s rate limiter (`src/plugins/rate-limit.ts`) is **in-memory and per-process**. With `CLUSTER_WORKERS > 1`, each worker has its own counters — limits are **not** shared, so the effective allowance scales roughly with worker count.
+When `RATE_LIMIT_ENABLED=true`, the starter’s rate limiter (`src/plugins/rate-limit.ts`) is **in-memory and per-process**. With `CLUSTER_WORKERS > 1`, each worker has its own counters — limits are **not** shared, so the effective allowance scales roughly with worker count.
 
 Before recommending cluster in production:
 

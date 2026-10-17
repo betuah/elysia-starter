@@ -1,11 +1,12 @@
 import { Elysia, status } from "elysia"
 
+import { auth } from "../auth"
 import {
 	authorizeDocsBasicAuth,
 	docsPathRequiresAuth,
 	isDocsBasicAuthConfigured,
 } from "../config/docs"
-import { env, type NodeEnv } from "../env"
+import { env, isRateLimitEnabled, type NodeEnv } from "../env"
 import { createRateLimiter } from "./rate-limit"
 
 const limiter = createRateLimiter({
@@ -43,8 +44,23 @@ export function resolveClientKey(
 	return "local"
 }
 
-function clientKey(request: Request) {
-	return resolveClientKey(request)
+/**
+ * Rate-limit bucket key.
+ * Authenticated → `user:{id}` (avoids NAT/CGNAT collisions).
+ * No session → `ip:{clientKey}` (only option before identity exists).
+ *
+ * Lightweight session peek here; auth macros may call `getSession` again later.
+ * Acceptable for this starter (no request-scoped session cache).
+ */
+export async function deriveRateLimitKey(request: Request): Promise<string> {
+	try {
+		const session = await auth.api.getSession({ headers: request.headers })
+		const userId = session?.user?.id
+		if (userId) return `user:${userId}`
+	} catch {
+		// Session peek must not disable rate limiting — fall back to IP.
+	}
+	return `ip:${resolveClientKey(request)}`
 }
 
 function unauthorizedDocs() {
@@ -57,43 +73,46 @@ function unauthorizedDocs() {
 	})
 }
 
-export const security = new Elysia({ name: "security" }).onRequest(({ request, set }) => {
-		const requestId = request.headers.get("x-request-id") ?? crypto.randomUUID()
-		set.headers["x-request-id"] = requestId
-		set.headers["x-content-type-options"] = "nosniff"
-		set.headers["x-frame-options"] = "DENY"
-		set.headers["referrer-policy"] = "no-referrer"
-		set.headers["permissions-policy"] = "camera=(), microphone=(), geolocation=()"
-		set.headers["x-dns-prefetch-control"] = "off"
+export const security = new Elysia({ name: "security" }).onRequest(async ({ request, set }) => {
+	const requestId = request.headers.get("x-request-id") ?? crypto.randomUUID()
+	set.headers["x-request-id"] = requestId
+	set.headers["x-content-type-options"] = "nosniff"
+	set.headers["x-frame-options"] = "DENY"
+	set.headers["referrer-policy"] = "no-referrer"
+	set.headers["permissions-policy"] = "camera=(), microphone=(), geolocation=()"
+	set.headers["x-dns-prefetch-control"] = "off"
 
-		const path = new URL(request.url).pathname
+	const path = new URL(request.url).pathname
 
-		if (
-			docsBasicAuthOn &&
-			docsPathRequiresAuth(path) &&
-			!authorizeDocsBasicAuth(
-				request.headers.get("authorization"),
-				env.DOCS_BASIC_AUTH_USER!,
-				env.DOCS_BASIC_AUTH_PASSWORD!,
-			)
-		) {
-			return unauthorizedDocs()
-		}
+	if (
+		docsBasicAuthOn &&
+		docsPathRequiresAuth(path) &&
+		!authorizeDocsBasicAuth(
+			request.headers.get("authorization"),
+			env.DOCS_BASIC_AUTH_USER!,
+			env.DOCS_BASIC_AUTH_PASSWORD!,
+		)
+	) {
+		return unauthorizedDocs()
+	}
 
-		if (skipped.some((pattern) => pattern.test(path))) return
+	if (skipped.some((pattern) => pattern.test(path))) return
 
-		const result = limiter.check(clientKey(request))
-		set.headers["x-ratelimit-limit"] = String(env.RATE_LIMIT_MAX)
-		set.headers["x-ratelimit-remaining"] = String(result.remaining)
+	// Off by default — live env read so tests can set RATE_LIMIT_ENABLED per case.
+	if (!isRateLimitEnabled()) return
 
-		if (!result.allowed) {
-			const retryAfter = Math.max(Math.ceil((result.resetAt - Date.now()) / 1000), 1)
-			set.headers["retry-after"] = String(retryAfter)
-			return status(429, {
-				code: "RATE_LIMITED" as const,
-				message: "Too many requests. Try again later.",
-			})
-		}
-	})
+	const result = limiter.check(await deriveRateLimitKey(request))
+	set.headers["x-ratelimit-limit"] = String(env.RATE_LIMIT_MAX)
+	set.headers["x-ratelimit-remaining"] = String(result.remaining)
+
+	if (!result.allowed) {
+		const retryAfter = Math.max(Math.ceil((result.resetAt - Date.now()) / 1000), 1)
+		set.headers["retry-after"] = String(retryAfter)
+		return status(429, {
+			code: "RATE_LIMITED" as const,
+			message: "Too many requests. Try again later.",
+		})
+	}
+})
 
 export const rateLimiter = limiter

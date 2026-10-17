@@ -1,0 +1,24 @@
+---
+description: Conventional Commits — no AI co-authors, no git config changes
+alwaysApply: true
+---
+
+# Git commits
+
+- **Format:** Conventional Commits — `type(scope): subject`
+  - Types: `feat`, `fix`, `docs`, `chore`, `refactor`, `test`, `perf`, `ci`, etc.
+  - Subject: short, imperative, **why**-focused (not a file list).
+  - Body optional; keep it brief when used.
+- **Never** add `Co-authored-by:` (or similar) trailers for Cursor, Cursor agent, Composer, or any AI/tool.
+- **Never** update git config (`user.name`, `user.email`, aliases, etc.).
+- Do not amend, `--no-verify`, force-push, or push unless the user explicitly asks.
+- Never commit `.env` or secrets; use `.env.example` as the template.
+
+```text
+# ✅ GOOD
+feat(security): key rate limits by user id and disable by default
+
+# ❌ BAD — AI trailer
+feat(security): key rate limits by user id
+Co-authored-by: Cursor <cursoragent@cursor.com>
+```

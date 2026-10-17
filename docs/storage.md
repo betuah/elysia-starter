@@ -97,4 +97,4 @@ S3_SECRET_ACCESS_KEY=minioadmin
 S3_BUCKET=my-bucket
 ```
 
-Wasabi / RustFS follow the same pattern as MinIO (custom `S3_ENDPOINT` + path style). Raise `MAX_BODY_SIZE` for large server-side uploads (avatar allows 2 MiB).
+Wasabi / RustFS follow the same pattern as MinIO (custom `S3_ENDPOINT` + path style). Raise `MAX_BODY_SIZE_MIB` for large server-side uploads (avatar allows 2 MiB).

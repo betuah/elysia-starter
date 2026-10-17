@@ -35,6 +35,35 @@ function integer(name: string, fallback: number, bounds?: { min?: number; max?: 
 	return value
 }
 
+const MIB = 1024 * 1024
+
+/**
+ * Max request body in bytes for Bun `serve.maxRequestBodySize`.
+ * Prefer `MAX_BODY_SIZE_MIB` (mebibytes). Legacy `MAX_BODY_SIZE` (bytes) still works.
+ * Default: 1 MiB.
+ */
+export function resolveMaxBodySizeBytes(
+	envVars: NodeJS.ProcessEnv = process.env,
+): number {
+	const mibRaw = envVars.MAX_BODY_SIZE_MIB
+	if (mibRaw !== undefined && mibRaw.trim() !== "") {
+		const mib = Number(mibRaw)
+		if (!Number.isInteger(mib) || mib < 1) {
+			throw new Error("MAX_BODY_SIZE_MIB must be an integer >= 1.")
+		}
+		return mib * MIB
+	}
+	const bytesRaw = envVars.MAX_BODY_SIZE
+	if (bytesRaw !== undefined && bytesRaw.trim() !== "") {
+		const value = Number(bytesRaw)
+		if (!Number.isInteger(value) || value < 1) {
+			throw new Error("MAX_BODY_SIZE must be an integer >= 1.")
+		}
+		return value
+	}
+	return MIB
+}
+
 function list(name: string, fallback: string[]): string[] {
 	const raw = process.env[name]
 	if (raw === undefined || raw.trim() === "") return fallback
@@ -67,6 +96,11 @@ function optional(name: string): string | undefined {
 function flag(name: string): boolean {
 	const raw = process.env[name]
 	return raw === "true" || raw === "1"
+}
+
+/** Live read of `RATE_LIMIT_ENABLED` — tests may toggle per case. Unset / false → off. */
+export function isRateLimitEnabled(): boolean {
+	return flag("RATE_LIMIT_ENABLED")
 }
 
 /**
@@ -257,10 +291,18 @@ export const env = {
 	BETTER_AUTH_URL: process.env.BETTER_AUTH_URL || `http://localhost:${port}`,
 	TRUSTED_ORIGINS: list("TRUSTED_ORIGINS", [`http://localhost:${port}`]),
 	TRUST_PROXY: process.env.TRUST_PROXY === "true",
+	/**
+	 * App + Better Auth rate limiting. Default **off** (unset / false).
+	 * Set `RATE_LIMIT_ENABLED=true` to enable. Live checks use {@link isRateLimitEnabled}.
+	 */
+	RATE_LIMIT_ENABLED: flag("RATE_LIMIT_ENABLED"),
 	RATE_LIMIT_WINDOW_MS: integer("RATE_LIMIT_WINDOW_MS", 60_000),
-	RATE_LIMIT_MAX: integer("RATE_LIMIT_MAX", environment === "test" ? 10_000 : 120),
-	/** Max HTTP request body size in bytes (Bun `serve.maxRequestBodySize`). Default 1 MiB. */
-	MAX_BODY_SIZE: integer("MAX_BODY_SIZE", 1_048_576, { min: 1 }),
+	RATE_LIMIT_MAX: integer("RATE_LIMIT_MAX", 120),
+	/**
+	 * Max HTTP request body size in **bytes** (Bun `serve.maxRequestBodySize`).
+	 * Configure via `MAX_BODY_SIZE_MIB` (preferred) or legacy `MAX_BODY_SIZE` (bytes). Default 1 MiB.
+	 */
+	MAX_BODY_SIZE: resolveMaxBodySizeBytes(),
 	/**
 	 * Idle connection timeout in seconds (Bun `serve.idleTimeout`).
 	 * Bun allows 0–255; `0` disables. Default 30 (matches Elysia's Bun adapter).
