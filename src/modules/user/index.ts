@@ -31,6 +31,7 @@ export const users = new Elysia({
 		"user.List": UserModel.list,
 		"user.Access": UserModel.access,
 		"user.UpdateMe": UserModel.updateMe,
+		"user.AvatarBody": UserModel.avatarBody,
 		"user.SetRole": UserModel.setRole,
 		"user.Create": UserModel.createUser,
 		"user.Ban": UserModel.banBody,
@@ -51,8 +52,30 @@ export const users = new Elysia({
 			422: "common.Error",
 			...guarded,
 		},
-		detail: { summary: "Update own profile (name, image)" },
+		detail: { summary: "Update own profile (name, image URL)" },
 	})
+	.post(
+		"/me/avatar",
+		({ user, body, locale }) => UserService.updateAvatar(user, body.file, locale),
+		{
+			auth: true,
+			body: "user.AvatarBody",
+			response: {
+				200: "user.Profile",
+				404: "common.Error",
+				422: "common.Error",
+				500: "common.Error",
+				...guarded,
+			},
+			detail: {
+				summary: "Upload own avatar",
+				description:
+					"Server-mediated upload (primary path). Multipart field `file` " +
+					"(png/jpeg/gif/webp, max 2 MiB) → `getStorage().put()` → local disk or S3 " +
+					"(no client presign). Sets `user.image` to the returned URL.",
+			},
+		},
+	)
 	.get("/me/access", ({ user }) => UserService.access(user), {
 		auth: true,
 		response: { 200: "user.Access", ...guarded },

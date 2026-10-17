@@ -8,8 +8,12 @@ import { failT } from "../../lib/error"
 import { assertOwnerOrPermission } from "../../lib/ownership"
 import { paginated } from "../../lib/response"
 import { sanitizeText } from "../../lib/sanitize"
+import { extensionFromFilename } from "../../lib/storage/keys"
+import { getStorage } from "../../lib/storage"
 import type { UserModel } from "./model"
 import { userRepository, type UserRecord } from "./repository"
+
+const AVATAR_TYPES = new Set(["image/png", "image/jpeg", "image/jpg", "image/gif", "image/webp"])
 
 /**
  * Public user DTO — response “sanitize”: omit secrets (password/hash/token never included).
@@ -70,6 +74,41 @@ export abstract class UserService {
 		}
 
 		const updated = await userRepository.update(actor.id, patch)
+		if (!updated) failT(locale, 404, "NOT_FOUND", "errors.userNotFound")
+		return toPublicUser(updated)
+	}
+
+	/**
+	 * Server-mediated avatar upload (primary storage flow — works for local and S3).
+	 * Multipart → `getStorage().put()` → persist `user.image` as the returned URL.
+	 * Key is stable per user (`avatars/{userId}{ext}`) so re-uploads overwrite.
+	 * Does not use client presign.
+	 */
+	static async updateAvatar(actor: Actor, file: File, locale: Locale = env.DEFAULT_LOCALE) {
+		const contentType = (file.type || "").toLowerCase()
+		if (!AVATAR_TYPES.has(contentType)) {
+			failT(locale, 422, "VALIDATION", "errors.avatarInvalidType")
+		}
+
+		const ext = extensionFromFilename(file.name) || extensionFromContentType(contentType)
+		const storage = getStorage()
+
+		let put
+		try {
+			put = await storage.put({
+				key: `avatars/${actor.id}${ext}`,
+				body: file,
+				filename: file.name,
+				contentType,
+			})
+		} catch {
+			failT(locale, 500, "INTERNAL", "errors.avatarUploadFailed")
+		}
+
+		const updated = await userRepository.update(actor.id, {
+			image: put.url,
+			updatedAt: new Date(),
+		})
 		if (!updated) failT(locale, 404, "NOT_FOUND", "errors.userNotFound")
 		return toPublicUser(updated)
 	}
@@ -227,5 +266,21 @@ export abstract class UserService {
 		})
 
 		return { id, deleted: true as const }
+	}
+}
+
+function extensionFromContentType(contentType: string): string {
+	switch (contentType) {
+		case "image/png":
+			return ".png"
+		case "image/jpeg":
+		case "image/jpg":
+			return ".jpg"
+		case "image/gif":
+			return ".gif"
+		case "image/webp":
+			return ".webp"
+		default:
+			return ""
 	}
 }

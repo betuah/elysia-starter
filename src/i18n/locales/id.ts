@@ -30,6 +30,11 @@ export const id: Record<MessageKey, string> = {
 	"errors.cannotDeleteSelf": "Anda tidak dapat menghapus diri sendiri",
 	"errors.cannotViewUser": "Anda tidak dapat melihat pengguna ini",
 	"errors.ownDataOnly": "Anda hanya dapat mengakses data sendiri",
+	"errors.fileNotFound": "Berkas tidak ditemukan",
+	"errors.fileInvalidKey": "Kunci berkas tidak valid",
+	"errors.fileUploadFailed": "Unggah berkas gagal",
+	"errors.avatarInvalidType": "Avatar harus berupa gambar (png, jpeg, gif, atau webp)",
+	"errors.avatarUploadFailed": "Unggah avatar gagal",
 
 	"health.ok": "ok",
 }

@@ -4,7 +4,7 @@ Starter API Bun + Elysia dengan Better Auth, ACL role, ownership (“data milik 
 
 ## Yang sudah tersedia
 
-- **Auth** — email/password, forgot/reset password, email verification, Google / OIDC SSO (env-gated), admin create/ban/delete/set-role
+- **Auth** — email/password, forgot/reset password, email verification, Google / enterprise SSO (env-gated), admin create/ban/delete/set-role
 - **ACL** — role `user` | `admin` di `src/auth/permissions.ts`
 - **Ownership** — helper `assertOwnerOrPermission` agar user biasa hanya mengakses datanya sendiri
 - **Security** — CORS, security headers, rate limit, Elysia `sanitize` (input), public DTO responses, cookie aman di production
@@ -14,6 +14,7 @@ Starter API Bun + Elysia dengan Better Auth, ACL role, ownership (“data milik 
 - **Cron** — `@elysia/cron`, aman di cluster (jalan di primary saja)
 - **i18n** — locale negotiation (cookie / query / Accept-Language), catalogs `en` + `id`
 - **Docker** — binary compile + distroless, compose `api` + `db`
+- **File storage** — shared `getStorage()` (`local` | `s3` via Bun `S3Client` — AWS / MinIO / Wasabi / RustFS / R2); primary = server `put()`; optional S3 put/get presign; contoh avatar `POST /api/users/me/avatar`
 
 ## Menjalankan (local)
 
@@ -141,11 +142,12 @@ assertOwnerOrPermission(actor, row.authorId, { note: ["moderate"] })
 | Promote / demote admin | ✅ | `PATCH /api/users/:id/role` |
 | Ban / unban | ✅ | `POST /api/users/:id/ban|unban` (+ `/api/auth/admin/*`) |
 | Delete user | ✅ | `DELETE /api/users/:id` |
-| Update own profile | ✅ | `PATCH /api/users/me` (name, image) |
+| Update own profile | ✅ | `PATCH /api/users/me` (name, image URL) |
+| Upload own avatar | ✅ | `POST /api/users/me/avatar` (multipart → `getStorage().put`) |
 | Google sign-in | ⚙️ | `AUTH_GOOGLE_ENABLED=true` + `GOOGLE_CLIENT_*` |
 | Google One Tap | ⚙️ | + `AUTH_GOOGLE_ONE_TAP_ENABLED=true` (FedCM) |
-| Enterprise SSO (OIDC) | ⚙️ | `AUTH_SSO_ENABLED=true` + client + issuer/discovery ([Better Auth SSO plugin](https://better-auth.com/docs/plugins/sso)) |
-| Provider probe | ✅ | `GET /api/auth/providers` (no secrets) + absolute SSO URIs for IdP registration |
+| Enterprise SSO | ⚙️ | `AUTH_SSO_ENABLED=true` + client + issuer/discovery ([Better Auth SSO plugin](https://better-auth.com/docs/plugins/sso)) |
+| Provider probe | ✅ | `GET /api/auth/providers` (no secrets) + absolute Google/SSO URIs for registration |
 | Email kirim nyata | ⚙️ | `RESEND_API_KEY` + `EMAIL_FROM`; tanpa itu → `console.log` mock |
 
 ### Auth providers (env toggles)
@@ -156,22 +158,22 @@ assertOwnerOrPermission(actor, row.authorId, { note: ["moderate"] })
 | `AUTH_GOOGLE_ONE_TAP_ENABLED=true` | Google efektif | Plugin `oneTap` |
 | `AUTH_SSO_ENABLED=true` | `AUTH_SSO_CLIENT_ID/SECRET` + `AUTH_SSO_ISSUER` (atau discovery) + domain | Plugin [`@better-auth/sso`](https://better-auth.com/docs/plugins/sso) `defaultSSO` |
 
-- Prefer `AUTH_SSO_*`. Legacy `AUTH_OIDC_*` names are aliases for the same settings.
+- Prefer `AUTH_SSO_*`. Legacy `AUTH_OIDC_*` env names still work as a silent fallback if `AUTH_SSO_*` is unset.
 - Discovery: set `AUTH_SSO_ISSUER` and/or `AUTH_SSO_DISCOVERY_URL` (issuer origin or full `.../.well-known/openid-configuration`).
-- Callbacks: Google → `{BETTER_AUTH_URL}/api/auth/callback/google`; SSO OIDC → `{BETTER_AUTH_URL}/api/auth/sso/callback/{AUTH_SSO_PROVIDER_ID}` (default provider id `oidc`).
 - Schema: SSO adds table `ssoProvider`. After pull, run `bun run db:migrate` (or restart with `RUN_MIGRATIONS=true`).
 
-### SSO / IdP registration
+### Google / SSO registration URIs
 
-Register these URIs with your identity provider. `providerId` defaults to `AUTH_SSO_PROVIDER_ID` (`oidc`). Docs: [Better Auth SSO plugin](https://better-auth.com/docs/plugins/sso).
+Register these with Google Cloud Console or your enterprise IdP. Docs: [Google](https://better-auth.com/docs/authentication/google), [SSO plugin](https://better-auth.com/docs/plugins/sso). `providerId` defaults to `AUTH_SSO_PROVIDER_ID` (`oidc`).
 
 | Purpose | Path |
 | --- | --- |
-| OIDC redirect/callback | `{BETTER_AUTH_URL}/api/auth/sso/callback/{providerId}` |
-| Sign-in | `POST {BETTER_AUTH_URL}/api/auth/sign-in/sso` |
+| Google authorized redirect | `{BETTER_AUTH_URL}/api/auth/callback/google` |
+| SSO redirect/callback | `{BETTER_AUTH_URL}/api/auth/sso/callback/{providerId}` |
+| SSO sign-in | `POST {BETTER_AUTH_URL}/api/auth/sign-in/sso` |
 | Sign-out | `POST {BETTER_AUTH_URL}/api/auth/sign-out` |
 
-`GET /api/auth/providers` returns the same values as absolute URIs under `sso` (and deprecated alias `oidc`): `redirectUri`, `callbackUri`, `signInUri`, `signOutUri` — no secrets.
+`GET /api/auth/providers` returns the same values as absolute URIs under `google` (`enabled`, `redirectUri`, `callbackUri`, `oneTap`) and `sso` (`redirectUri`, `callbackUri`, `signInUri`, `signOutUri`) — no secrets.
 
 ---
 
@@ -281,6 +283,125 @@ API supports `en` + `id`.
 
 Env: `DEFAULT_LOCALE=en`, `SUPPORTED_LOCALES=en,id`.
 
+## File storage (shared service — local | S3)
+
+Elysia **parses** multipart (`t.File`); it does **not** ship a storage plugin. Persistence is a **shared** app service under `src/lib/storage` that any module imports. Switch drivers with `STORAGE_DRIVER` — same API.
+
+**Two upload flows** (both supported; do not confuse them):
+
+| Flow | When to use | Path |
+| --- | --- | --- |
+| **1. Server-mediated (primary)** | Always works — `local` **and** `s3` | Client multipart → your API → `getStorage().put(...)` → disk or Bun `S3Client.write` → `{ key, url }` |
+| **2. Presign (optional)** | S3 only — large files / direct-to-bucket | Client asks API for put/get URL → client talks to S3; skip if `STORAGE_DRIVER=local` |
+
+| Layer | Role |
+| --- | --- |
+| Any module | `import { getStorage } from "../lib/storage"` |
+| `src/lib/storage` | `StorageAdapter` — `put` (primary) / `get` / `delete` / `exists` / `getPublicUrl` / optional `createPutPresignedUrl` / `createGetPresignedUrl` |
+| Bun | Disk (`Bun.write`) or native [`Bun.S3Client`](https://bun.com/docs/runtime/s3) (+ optional `.presign`) |
+
+### Flow 1 — server-mediated `put` (primary)
+
+```ts
+import { getStorage } from "../../lib/storage"
+
+const storage = getStorage()
+const { key, url, path } = await storage.put({
+  body: file, // File | Blob | Uint8Array | string
+  key: `notes/${userId}.txt`, // optional; else {prefix}{uuid}{ext}
+  filename: file.name,
+  contentType: file.type,
+})
+// url  — local: {STORAGE_PUBLIC_URL|APP_URL}/uploads/{key}
+//       s3:    {S3_PUBLIC_URL|STORAGE_PUBLIC_URL}/{key} or Bun GET-presign if no CDN
+// path — absolute filesystem path (local only)
+
+await storage.get(key)
+await storage.exists(key)
+await storage.delete(key)
+storage.getPublicUrl(key)
+```
+
+**Avatar example** uses this flow: `POST /api/users/me/avatar` (auth, multipart field `file`) → `getStorage().put({ key: avatars/{userId}.ext, ... })` → updates Better Auth `user.image` with the returned `url`. Works with both `STORAGE_DRIVER=local` and `s3` — no presign involved.
+
+### Flow 2 — optional put/get presign (S3 only)
+
+Use when the client should upload/download **directly** to/from the bucket (bypass API body size). Call from your module code — there is **no** dedicated files HTTP module. Local adapter returns `null`.
+
+```ts
+// S3 only — local returns null (use put() / GET /uploads/{key} instead)
+const putUrl = await storage.createPutPresignedUrl("uploads/client.bin", {
+  contentType: "application/octet-stream",
+  expiresIn: 900,
+})
+const getUrl = await storage.createGetPresignedUrl(key, { expiresIn: 900 })
+```
+
+### Local public serving
+
+For `STORAGE_DRIVER=local`, `plugin.storage-static` exposes **GET only**:
+
+| Route | Auth | Notes |
+| --- | --- | --- |
+| `GET /uploads/{key}` | no | Serves objects for local `getPublicUrl` (matches default `{APP_URL}/uploads`) |
+
+Override the base with `STORAGE_PUBLIC_URL` if you front uploads with a CDN or different path.
+
+| Env | Notes |
+| --- | --- |
+| `STORAGE_DRIVER` | `local` (default) or `s3` |
+| `STORAGE_LOCAL_DIR` | Disk root (default `storage/`) |
+| `STORAGE_PREFIX` | Optional key prefix (`uploads`) |
+| `STORAGE_PUBLIC_URL` | Override URL base for `getPublicUrl` |
+| `S3_ENDPOINT` | S3-compatible API base. **Required** for MinIO / Wasabi / RustFS / R2 / Spaces; **omit** for AWS default |
+| `S3_REGION` | Signing region (default `auto`). Use a real region for AWS / Wasabi (e.g. `us-east-1`) |
+| `S3_ACCESS_KEY_ID` / `S3_SECRET_ACCESS_KEY` / `S3_BUCKET` | Required when `STORAGE_DRIVER=s3` |
+| `S3_PUBLIC_URL` | CDN/public base; else Bun **presigned** URL |
+| `S3_FORCE_PATH_STYLE` | Path-style URLs (`endpoint/bucket/key`). Maps to Bun `virtualHostedStyle: !value` (Bun has no `forcePathStyle`). Prefer `true` for MinIO / RustFS. Unset = Bun default (path-style) |
+| `S3_PRESIGN_EXPIRES` | Default expiry seconds for put/get presign (default `3600`) |
+
+Server-side `put()` and Bun `presign()` both use the same `S3Client` options, so they work against any compatible endpoint Bun supports.
+
+### S3 provider examples
+
+```bash
+# AWS S3 — no custom endpoint
+STORAGE_DRIVER=s3
+S3_REGION=us-east-1
+S3_ACCESS_KEY_ID=AKIA...
+S3_SECRET_ACCESS_KEY=...
+S3_BUCKET=my-bucket
+# S3_PUBLIC_URL=https://cdn.example.com
+
+# MinIO
+STORAGE_DRIVER=s3
+S3_ENDPOINT=http://localhost:9000
+S3_REGION=us-east-1
+S3_FORCE_PATH_STYLE=true
+S3_ACCESS_KEY_ID=minioadmin
+S3_SECRET_ACCESS_KEY=minioadmin
+S3_BUCKET=my-bucket
+
+# Wasabi
+STORAGE_DRIVER=s3
+S3_ENDPOINT=https://s3.wasabisys.com
+S3_REGION=us-east-1
+S3_FORCE_PATH_STYLE=true
+S3_ACCESS_KEY_ID=...
+S3_SECRET_ACCESS_KEY=...
+S3_BUCKET=my-bucket
+
+# RustFS (S3-compatible self-hosted)
+STORAGE_DRIVER=s3
+S3_ENDPOINT=http://localhost:9000
+S3_REGION=us-east-1
+S3_FORCE_PATH_STYLE=true
+S3_ACCESS_KEY_ID=...
+S3_SECRET_ACCESS_KEY=...
+S3_BUCKET=my-bucket
+```
+
+Raise `MAX_BODY_SIZE` for large server-side uploads (avatar allows 2 MiB).
 ## Testing
 
 Convention: **satu fitur → satu folder** di bawah `tests/modules/<feature>/` (bukan monolit `api.test.ts`). Helper bersama di `tests/helpers/`. Unit lib/config/auth di `tests/lib`, `tests/config`, `tests/auth`.
@@ -295,7 +416,8 @@ tests/
 ├── config/{cluster,cron,server}-config.test.ts
 ├── db/config.test.ts
 ├── i18n/i18n.test.ts
-├── lib/{sanitize,response}.test.ts
+├── lib/{sanitize,response,storage}.test.ts
+├── plugins/storage-static.test.ts
 └── modules/
     ├── health/health.test.ts
     ├── i18n/locales.test.ts
@@ -324,7 +446,8 @@ src/
 │   ├── schema/              # Drizzle Postgres tables (pg-core)
 │   ├── providers/           # postgres.js + pglite (tests)
 │   └── migrate.ts
-├── lib/                     # actor, error, email, ownership, sanitize, response
+├── lib/                     # actor, error, email, ownership, sanitize, response, storage/
+│   └── storage/             # StorageAdapter + local / Bun S3 drivers
 ├── i18n/                    # catalogs + t() + negotiateLocale
 ├── models/                  # common.Error, pagination schemas
 ├── modules/
@@ -334,7 +457,7 @@ src/
 │   │   ├── model.ts
 │   │   └── index.ts
 │   ├── health/, auth-providers/, i18n/
-├── plugins/                 # auth, error, i18n, openapi, security — bukan cron
+├── plugins/                 # auth, error, i18n, openapi, security, storage-static
 └── scripts/seed.ts
 drizzle/                     # Postgres migrations
 tests/modules/<feature>/
@@ -342,7 +465,7 @@ tests/modules/<feature>/
 
 ## Configuration (ringkas)
 
-Lihat `.env.example`. Penting: `BETTER_AUTH_*`, `TRUSTED_ORIGINS`, `DATABASE_URL` (Postgres), `ADMIN_*` / `USER_*`, `AUTH_GOOGLE_*` / `GOOGLE_*`, `AUTH_SSO_*` (alias `AUTH_OIDC_*`), `DEFAULT_LOCALE` / `SUPPORTED_LOCALES`, `RESEND_API_KEY`, `CRON_ENABLED`, `CLUSTER_WORKERS`, `APP_URL`.
+Lihat `.env.example`. Penting: `BETTER_AUTH_*`, `TRUSTED_ORIGINS`, `DATABASE_URL` (Postgres), `ADMIN_*` / `USER_*`, `AUTH_GOOGLE_*` / `GOOGLE_*`, `AUTH_SSO_*`, `DEFAULT_LOCALE` / `SUPPORTED_LOCALES`, `RESEND_API_KEY`, `CRON_ENABLED`, `CLUSTER_WORKERS`, `APP_URL`, `STORAGE_DRIVER` / `S3_*`.
 
 ## Menambah modul
 

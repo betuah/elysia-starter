@@ -1,10 +1,19 @@
-import { describe, expect, it } from "bun:test"
+import { afterAll, describe, expect, it } from "bun:test"
+import { rm } from "node:fs/promises"
 
+import { app } from "../../../src/app"
+import { setStorageForTests } from "../../../src/lib/storage"
 import { userRepository } from "../../../src/modules/user/repository"
-import { request, signUp } from "../../helpers/http"
+import { origin, request, signUp } from "../../helpers/http"
 
 describe("module.user http", () => {
 	const stamp = Date.now()
+
+	afterAll(async () => {
+		setStorageForTests(undefined)
+		const dir = process.env.STORAGE_LOCAL_DIR
+		if (dir) await rm(dir, { recursive: true, force: true })
+	})
 
 	it("lets a member patch own profile and blocks listing users", async () => {
 		const member = await signUp("Member", `member-${stamp}@example.com`)
@@ -79,6 +88,33 @@ describe("module.user http", () => {
 		})
 		expect(lastAdmin.response.status).toBe(409)
 		expect(lastAdmin.body.code).toBe("CONFLICT")
+	})
+
+	it("uploads an avatar via shared storage and sets user.image", async () => {
+		const member = await signUp("Avatar", `avatar-${stamp}@example.com`)
+		const png = new Uint8Array([
+			0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a, 0x00, 0x00, 0x00, 0x0d, 0x49, 0x48, 0x44,
+			0x52, 0x00, 0x00, 0x00, 0x01, 0x00, 0x00, 0x00, 0x01, 0x08, 0x02, 0x00, 0x00, 0x00, 0x90,
+			0x77, 0x53, 0xde, 0x00, 0x00, 0x00, 0x0c, 0x49, 0x44, 0x41, 0x54, 0x08, 0xd7, 0x63, 0xf8,
+			0xff, 0xff, 0x3f, 0x00, 0x05, 0xfe, 0x02, 0xfe, 0xdc, 0xcc, 0x59, 0xe7, 0x00, 0x00, 0x00,
+			0x00, 0x49, 0x45, 0x4e, 0x44, 0xae, 0x42, 0x60, 0x82,
+		])
+		const form = new FormData()
+		form.set("file", new File([png], "me.png", { type: "image/png" }))
+
+		const uploaded = await request("/api/users/me/avatar", {
+			method: "POST",
+			headers: { authorization: `Bearer ${member.token}` },
+			body: form,
+		})
+		expect(uploaded.response.status).toBe(200)
+		expect(uploaded.body.image).toContain("/uploads/")
+		expect(uploaded.body.image).toContain(`avatars/${member.user.id}`)
+
+		const imagePath = new URL(uploaded.body.image as string).pathname
+		const served = await app.handle(new Request(`${origin}${imagePath}`))
+		expect(served.status).toBe(200)
+		expect(served.headers.get("content-type")).toContain("image/png")
 	})
 
 	it("lets an admin create a user", async () => {

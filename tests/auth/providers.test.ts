@@ -126,7 +126,7 @@ describe("auth.providers gating", () => {
 		})
 	})
 
-	it("exposes public sso/oidc flags and IdP URIs without secrets", () => {
+	it("exposes public google/sso flags and IdP URIs without secrets", () => {
 		const publicFlags = getAuthProvidersPublic({
 			...base,
 			AUTH_GOOGLE_ENABLED: true,
@@ -141,23 +141,27 @@ describe("auth.providers gating", () => {
 			AUTH_SSO_PROVIDER_ID: "company",
 			AUTH_SSO_DOMAIN: "company.com",
 		})
-		const sso = {
-			enabled: true,
-			providerId: "company",
-			name: "Company SSO",
-			domain: "company.com",
-			redirectUri: "http://localhost:3000/api/auth/sso/callback/company",
-			callbackUri: "http://localhost:3000/api/auth/sso/callback/company",
-			signInUri: "http://localhost:3000/api/auth/sign-in/sso",
-			signOutUri: "http://localhost:3000/api/auth/sign-out",
-		}
 		expect(publicFlags).toEqual({
 			emailPassword: true,
-			google: true,
-			googleOneTap: false,
-			sso,
-			oidc: sso,
+			google: {
+				enabled: true,
+				redirectUri: "http://localhost:3000/api/auth/callback/google",
+				callbackUri: "http://localhost:3000/api/auth/callback/google",
+				oneTap: false,
+			},
+			sso: {
+				enabled: true,
+				providerId: "company",
+				name: "Company SSO",
+				domain: "company.com",
+				redirectUri: "http://localhost:3000/api/auth/sso/callback/company",
+				callbackUri: "http://localhost:3000/api/auth/sso/callback/company",
+				signInUri: "http://localhost:3000/api/auth/sign-in/sso",
+				signOutUri: "http://localhost:3000/api/auth/sign-out",
+			},
 		})
 		expect(JSON.stringify(publicFlags)).not.toContain("secret")
+		expect(publicFlags).not.toHaveProperty("oidc")
+		expect(publicFlags).not.toHaveProperty("googleOneTap")
 	})
 })

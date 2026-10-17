@@ -6,3 +6,5 @@ process.env.BETTER_AUTH_URL = "http://localhost:3000"
 process.env.TRUSTED_ORIGINS = "http://localhost:3000"
 process.env.RATE_LIMIT_MAX = "10000"
 process.env.PORT = "3000"
+process.env.STORAGE_DRIVER = "local"
+process.env.STORAGE_LOCAL_DIR = `${process.env.TMPDIR ?? "/tmp"}/elysia-starter-storage-test`

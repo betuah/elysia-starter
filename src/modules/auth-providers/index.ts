@@ -3,6 +3,13 @@ import { Elysia, t } from "elysia"
 import { listAuthProviders } from "../../auth"
 import { sharedModels } from "../../models"
 
+const googleProviderShape = t.Object({
+	enabled: t.Boolean(),
+	redirectUri: t.String({ trusted: true }),
+	callbackUri: t.String({ trusted: true }),
+	oneTap: t.Boolean(),
+})
+
 const ssoProviderShape = t.Object({
 	enabled: t.Boolean(),
 	providerId: t.String({ trusted: true }),
@@ -16,11 +23,8 @@ const ssoProviderShape = t.Object({
 
 const providersResponse = t.Object({
 	emailPassword: t.Literal(true),
-	google: t.Boolean(),
-	googleOneTap: t.Boolean(),
+	google: googleProviderShape,
 	sso: ssoProviderShape,
-	/** Alias of `sso` for older clients. */
-	oidc: ssoProviderShape,
 })
 
 /**
@@ -36,8 +40,10 @@ export const authProviders = new Elysia({
 	.get("/providers", () => listAuthProviders(), {
 		response: { 200: providersResponse },
 		detail: {
+			tags: ["Auth"],
 			summary: "Enabled auth providers",
+			operationId: "getApiAuthProviders",
 			description:
-				"Which sign-in methods are active (email/password, Google, SSO) plus absolute public URIs for IdP registration (`sso.redirectUri` / `callbackUri`, `signInUri`, `signOutUri`). Built from `BETTER_AUTH_URL`; no client secrets. See https://better-auth.com/docs/plugins/sso",
+				"Which sign-in methods are active (email/password, Google, SSO) plus absolute public URIs for IdP / Google Console registration (`google.redirectUri` / `callbackUri`, `sso.redirectUri` / `callbackUri`, `signInUri`, `signOutUri`). Built from `BETTER_AUTH_URL`; no client secrets. Google: `{BETTER_AUTH_URL}/api/auth/callback/google`. SSO: https://better-auth.com/docs/plugins/sso",
 		},
 	})

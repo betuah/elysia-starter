@@ -32,6 +32,13 @@ export const UserModel = {
 		/** URL — skip HTML escape so `&` in query strings is preserved. */
 		image: t.Optional(t.Union([t.String({ maxLength: 2048, trusted: true }), t.Null()])),
 	}),
+	/** Multipart avatar upload — field `file`. */
+	avatarBody: t.Object({
+		file: t.File({
+			type: ["image/png", "image/jpeg", "image/jpg", "image/gif", "image/webp"],
+			maxSize: "2m",
+		}),
+	}),
 	setRole: t.Object({
 		role: t.Union(roleNames.map((role) => t.Literal(role))),
 	}),

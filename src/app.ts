@@ -17,6 +17,7 @@ import { errors } from "./plugins/error"
 import { i18nPlugin } from "./plugins/i18n"
 import { docs } from "./plugins/openapi"
 import { security } from "./plugins/security"
+import { storageStatic } from "./plugins/storage-static"
 
 const clustered = shouldUseCluster(resolveClusterWorkers(env.CLUSTER_WORKERS), env.NODE_ENV)
 const attachCron = shouldAttachCronToHttpApp({
@@ -46,13 +47,14 @@ const base = new Elysia(elysiaOptions)
 	)
 	.use(i18nPlugin)
 	.use(errors)
-	.use(docs)
 	.use(authPlugin)
+	// Before Better Auth mount so `/api/auth/providers` is not swallowed at runtime.
 	.use(authProviders)
 	.mount(auth.handler)
 	.use(health)
 	.use(i18nRoutes)
 	.use(users)
+	.use(storageStatic)
 	.get(
 		"/",
 		({ locale }) => ({
@@ -73,6 +75,8 @@ const base = new Elysia(elysiaOptions)
 			},
 		},
 	)
+	// OpenAPI after routes so `/docs/json` always snapshots the full tree (incl. Auth).
+	.use(docs)
 
 export const app = attachCron ? base.use(createCronPlugin()) : base
 

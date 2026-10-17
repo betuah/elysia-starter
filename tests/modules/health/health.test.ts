@@ -24,29 +24,37 @@ describe("module.health", () => {
 		// Default env: all social providers off (no real IdP required).
 		const providers = await request("/api/auth/providers")
 		expect(providers.response.status).toBe(200)
-		const ssoOff = {
-			enabled: false,
-			providerId: "oidc",
-			name: "SSO",
-			domain: "localhost",
-			redirectUri: "http://localhost:3000/api/auth/sso/callback/oidc",
-			callbackUri: "http://localhost:3000/api/auth/sso/callback/oidc",
-			signInUri: "http://localhost:3000/api/auth/sign-in/sso",
-			signOutUri: "http://localhost:3000/api/auth/sign-out",
-		}
 		expect(providers.body).toEqual({
 			emailPassword: true,
-			google: false,
-			googleOneTap: false,
-			sso: ssoOff,
-			oidc: ssoOff,
+			google: {
+				enabled: false,
+				redirectUri: "http://localhost:3000/api/auth/callback/google",
+				callbackUri: "http://localhost:3000/api/auth/callback/google",
+				oneTap: false,
+			},
+			sso: {
+				enabled: false,
+				providerId: "oidc",
+				name: "SSO",
+				domain: "localhost",
+				redirectUri: "http://localhost:3000/api/auth/sso/callback/oidc",
+				callbackUri: "http://localhost:3000/api/auth/sso/callback/oidc",
+				signInUri: "http://localhost:3000/api/auth/sign-in/sso",
+				signOutUri: "http://localhost:3000/api/auth/sign-out",
+			},
 		})
+		expect(providers.body).not.toHaveProperty("oidc")
 		expect(JSON.stringify(providers.body)).not.toMatch(/secret|CLIENT_/i)
 
 		const spec = await request("/docs/json")
 		expect(spec.response.status).toBe(200)
 		expect(spec.body.paths["/api/users/me"]).toBeTruthy()
-		expect(spec.body.paths["/api/auth/providers"]).toBeTruthy()
+		const providersOp = spec.body.paths["/api/auth/providers"]?.get
+		expect(providersOp).toBeTruthy()
+		expect(providersOp.summary).toBe("Enabled auth providers")
+		expect(providersOp.tags).toContain("Auth")
+		expect(providersOp.operationId).toBe("getApiAuthProviders")
+		expect(spec.body.tags?.some((tag: { name: string }) => tag.name === "Auth")).toBe(true)
 		expect(spec.body.paths["/api/posts"]).toBeUndefined()
 		expect(spec.body.components.securitySchemes.bearerAuth.scheme).toBe("bearer")
 

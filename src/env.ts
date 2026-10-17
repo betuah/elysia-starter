@@ -2,6 +2,7 @@ import { resolveDatabaseConnection } from "./db/config"
 
 export type NodeEnv = "development" | "test" | "production"
 export type LocaleCode = "en" | "id"
+export type StorageDriver = "local" | "s3"
 export { resolveDatabaseConnection }
 
 export const LOCALE_CODES = ["en", "id"] as const satisfies readonly LocaleCode[]
@@ -58,6 +59,18 @@ function optional(name: string): string | undefined {
 function flag(name: string): boolean {
 	const raw = process.env[name]
 	return raw === "true" || raw === "1"
+}
+
+/**
+ * Optional boolean env: unset → `undefined`; `"true"`/`"1"` → true; `"false"`/`"0"` → false.
+ */
+function optionalBool(name: string): boolean | undefined {
+	const raw = process.env[name]
+	if (raw === undefined || raw.trim() === "") return undefined
+	const value = raw.trim().toLowerCase()
+	if (value === "true" || value === "1") return true
+	if (value === "false" || value === "0") return false
+	throw new Error(`${name} must be true, false, 1, or 0. Received "${raw}".`)
 }
 
 function isLocaleCode(value: string): value is LocaleCode {
@@ -153,6 +166,30 @@ const ssoEffectivelyEnabled =
 
 const supportedLocaleList = supportedLocales()
 const defaultLocaleValue = defaultLocale(supportedLocaleList)
+
+function storageDriver(): StorageDriver {
+	const raw = (process.env.STORAGE_DRIVER ?? "local").trim().toLowerCase()
+	if (raw === "local" || raw === "s3") return raw
+	throw new Error(`STORAGE_DRIVER must be local or s3. Received "${raw}".`)
+}
+
+const storageDriverValue = storageDriver()
+const s3AccessKeyId = optional("S3_ACCESS_KEY_ID")
+const s3SecretAccessKey = optional("S3_SECRET_ACCESS_KEY")
+const s3Bucket = optional("S3_BUCKET")
+
+if (storageDriverValue === "s3") {
+	const missing = [
+		!s3AccessKeyId && "S3_ACCESS_KEY_ID",
+		!s3SecretAccessKey && "S3_SECRET_ACCESS_KEY",
+		!s3Bucket && "S3_BUCKET",
+	].filter(Boolean)
+	if (missing.length > 0) {
+		throw new Error(
+			`STORAGE_DRIVER=s3 requires ${missing.join(", ")}. Set credentials or use STORAGE_DRIVER=local.`,
+		)
+	}
+}
 
 /** Postgres connection — DATABASE_URL required unless USE_PGLITE / NODE_ENV=test. */
 const database = resolveDatabaseConnection(process.env as {
@@ -278,4 +315,48 @@ export const env = {
 	DEFAULT_LOCALE: defaultLocaleValue,
 	/** Comma-separated supported locales (`en`, `id`). */
 	SUPPORTED_LOCALES: supportedLocaleList,
+	/**
+	 * File storage backend: `local` (disk under STORAGE_LOCAL_DIR) or `s3`
+	 * (Bun native S3Client — AWS, MinIO, Wasabi, RustFS, R2, and other S3-compatible APIs).
+	 */
+	STORAGE_DRIVER: storageDriverValue,
+	/** Local root directory (cwd-relative or absolute). Default `storage`. */
+	STORAGE_LOCAL_DIR: process.env.STORAGE_LOCAL_DIR?.trim() || "storage",
+	/** Optional key prefix for both drivers (e.g. `uploads/`). */
+	STORAGE_PREFIX: (() => {
+		const raw = process.env.STORAGE_PREFIX?.trim() ?? ""
+		return raw.replace(/^\/+|\/+$/g, "")
+	})(),
+	/**
+	 * Override base for `getPublicUrl` (no trailing slash).
+	 * Local default: `{APP_URL}/uploads`. S3: also accepts `S3_PUBLIC_URL`.
+	 */
+	STORAGE_PUBLIC_URL: optional("STORAGE_PUBLIC_URL"),
+	/**
+	 * S3-compatible API endpoint. Required for MinIO / Wasabi / RustFS / R2 / Spaces.
+	 * Leave unset for AWS (Bun infers `https://s3.<region>.amazonaws.com` from region + bucket).
+	 */
+	S3_ENDPOINT: optional("S3_ENDPOINT"),
+	/**
+	 * Signing / endpoint region. AWS & Wasabi: real region (e.g. `us-east-1`).
+	 * R2 often uses `auto`. Default `auto` (compatible with R2; set explicitly for AWS).
+	 */
+	S3_REGION: process.env.S3_REGION?.trim() || "auto",
+	S3_ACCESS_KEY_ID: s3AccessKeyId,
+	S3_SECRET_ACCESS_KEY: s3SecretAccessKey,
+	S3_BUCKET: s3Bucket,
+	/** Public CDN / bucket URL for S3 objects (preferred over presigned URLs). */
+	S3_PUBLIC_URL: optional("S3_PUBLIC_URL"),
+	/**
+	 * Path-style requests (`endpoint/bucket/key`). Bun maps this to
+	 * `virtualHostedStyle: !S3_FORCE_PATH_STYLE` (Bun has no `forcePathStyle` option).
+	 * Unset → Bun default (path-style). Set `false` for virtual-hosted (`bucket.endpoint`).
+	 * Prefer `true` for MinIO / RustFS and many self-hosted S3 APIs.
+	 */
+	S3_FORCE_PATH_STYLE: optionalBool("S3_FORCE_PATH_STYLE"),
+	/**
+	 * Default expiry (seconds) for Bun S3 put/get presigned URLs and for
+	 * `getPublicUrl` when no CDN base is set. Default 3600 (1 hour).
+	 */
+	S3_PRESIGN_EXPIRES: integer("S3_PRESIGN_EXPIRES", 3600, { min: 1, max: 604_800 }),
 } as const

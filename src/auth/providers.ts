@@ -2,8 +2,8 @@
  * Auth provider gating — pure helpers (no Better Auth import) so unit tests stay light.
  * Secrets never appear in {@link AuthProvidersPublic}.
  *
- * Enterprise OIDC uses `@better-auth/sso` (`defaultSSO`), not `genericOAuth`.
- * Env: prefer `AUTH_SSO_*`; `AUTH_OIDC_*` remains a documented alias.
+ * Enterprise SSO uses `@better-auth/sso` (`defaultSSO`), not `genericOAuth`.
+ * Env: prefer `AUTH_SSO_*` (`AUTH_OIDC_*` may still be read as a silent env fallback).
  */
 
 export type AuthProviderEnv = {
@@ -13,7 +13,7 @@ export type AuthProviderEnv = {
 	AUTH_GOOGLE_ONE_TAP_ENABLED: boolean
 	GOOGLE_CLIENT_ID: string | undefined
 	GOOGLE_CLIENT_SECRET: string | undefined
-	/** Master toggle — `AUTH_SSO_ENABLED` or alias `AUTH_OIDC_ENABLED`. */
+	/** Master toggle — `AUTH_SSO_ENABLED`. */
 	AUTH_SSO_ENABLED: boolean
 	AUTH_SSO_PROVIDER_ID: string
 	AUTH_SSO_NAME: string
@@ -29,6 +29,16 @@ export type AuthProviderEnv = {
 	AUTH_SSO_USERINFO_URL: string | undefined
 	AUTH_SSO_JWKS_URL: string | undefined
 	AUTH_SSO_SCOPES: string[]
+}
+
+export type GoogleProviderPublic = {
+	enabled: boolean
+	/** Google Cloud Console authorized redirect URI. */
+	redirectUri: string
+	/** Alias of {@link GoogleProviderPublic.redirectUri}. */
+	callbackUri: string
+	/** Google One Tap (FedCM) when Google is effectively on. */
+	oneTap: boolean
 }
 
 export type SsoProviderPublic = {
@@ -48,15 +58,9 @@ export type SsoProviderPublic = {
 
 export type AuthProvidersPublic = {
 	emailPassword: true
-	google: boolean
-	googleOneTap: boolean
+	google: GoogleProviderPublic
 	/** Official Better Auth SSO plugin (OIDC/SAML). */
 	sso: SsoProviderPublic
-	/**
-	 * Alias of {@link AuthProvidersPublic.sso} for older clients that still key on `oidc`.
-	 * @deprecated Prefer `sso`.
-	 */
-	oidc: SsoProviderPublic
 }
 
 /** Shape for `@better-auth/sso` `defaultSSO` OIDC entry. */
@@ -107,8 +111,16 @@ export function isSsoEnabled(env: AuthProviderEnv): boolean {
 	return Boolean(env.AUTH_SSO_AUTHORIZATION_URL && env.AUTH_SSO_TOKEN_URL)
 }
 
-/** @deprecated Use {@link isSsoEnabled}. */
-export const isOidcEnabled = isSsoEnabled
+function googlePublic(env: AuthProviderEnv): GoogleProviderPublic {
+	const base = authBaseUrl(env.BETTER_AUTH_URL)
+	const redirectUri = `${base}/api/auth/callback/google`
+	return {
+		enabled: isGoogleEnabled(env),
+		redirectUri,
+		callbackUri: redirectUri,
+		oneTap: isGoogleOneTapEnabled(env),
+	}
+}
 
 function ssoPublic(env: AuthProviderEnv): SsoProviderPublic {
 	const enabled = isSsoEnabled(env)
@@ -129,14 +141,10 @@ function ssoPublic(env: AuthProviderEnv): SsoProviderPublic {
 
 /** Public flags + IdP registration URIs (no secrets). */
 export function getAuthProvidersPublic(env: AuthProviderEnv): AuthProvidersPublic {
-	const google = isGoogleEnabled(env)
-	const sso = ssoPublic(env)
 	return {
 		emailPassword: true,
-		google,
-		googleOneTap: isGoogleOneTapEnabled(env),
-		sso,
-		oidc: sso,
+		google: googlePublic(env),
+		sso: ssoPublic(env),
 	}
 }
 
@@ -183,6 +191,3 @@ export function buildSsoDefaultConfig(env: AuthProviderEnv): SsoDefaultOidcEntry
 
 	return entry
 }
-
-/** @deprecated Use {@link buildSsoDefaultConfig}. */
-export const buildOidcProviderConfig = buildSsoDefaultConfig

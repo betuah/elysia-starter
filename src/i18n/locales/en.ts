@@ -28,6 +28,11 @@ export const en = {
 	"errors.cannotDeleteSelf": "You cannot delete yourself",
 	"errors.cannotViewUser": "You cannot view this user",
 	"errors.ownDataOnly": "You can only access your own data",
+	"errors.fileNotFound": "File not found",
+	"errors.fileInvalidKey": "Invalid file key",
+	"errors.fileUploadFailed": "File upload failed",
+	"errors.avatarInvalidType": "Avatar must be an image (png, jpeg, gif, or webp)",
+	"errors.avatarUploadFailed": "Avatar upload failed",
 
 	"health.ok": "ok",
 } as const
