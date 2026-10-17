@@ -1,5 +1,5 @@
 import { betterAuth } from "better-auth"
-import { oneTap } from "better-auth/plugins"
+import { captcha, oneTap } from "better-auth/plugins"
 import { admin } from "better-auth/plugins/admin"
 import { bearer } from "better-auth/plugins/bearer"
 import { openAPI } from "better-auth/plugins/open-api"
@@ -11,6 +11,11 @@ import EmailVerificationEmail from "../emails/email-verification"
 import PasswordResetEmail from "../emails/password-reset"
 import { env } from "../env"
 import { renderEmail, sendEmail } from "../lib/email"
+import {
+	buildCaptchaPluginOptions,
+	getCaptchaPublic,
+	type CaptchaEnv,
+} from "./captcha"
 import { ac, roleDefinitions } from "./permissions"
 import {
 	buildSsoDefaultConfig,
@@ -44,11 +49,22 @@ function providerEnv(): AuthProviderEnv {
 	}
 }
 
+function captchaEnv(): CaptchaEnv {
+	return {
+		CAPTCHA_ENABLED: env.CAPTCHA_ENABLED,
+		CAPTCHA_PROVIDER: env.CAPTCHA_PROVIDER,
+		CAPTCHA_SECRET_KEY: env.CAPTCHA_SECRET_KEY,
+		CAPTCHA_SITE_KEY: env.CAPTCHA_SITE_KEY,
+		CAPTCHA_MIN_SCORE: env.CAPTCHA_MIN_SCORE,
+	}
+}
+
 const providers = providerEnv()
 const googleOn = isGoogleEnabled(providers)
 const oneTapOn = isGoogleOneTapEnabled(providers)
 const ssoOn = isSsoEnabled(providers)
 const ssoDefault = buildSsoDefaultConfig(providers)
+const captchaOptions = buildCaptchaPluginOptions(captchaEnv())
 
 const googleSocial = googleOn
 	? {
@@ -155,12 +171,16 @@ export const auth = betterAuth({
 					}),
 				]
 			: []),
+		...(captchaOptions ? [captcha(captchaOptions)] : []),
 	],
 })
 
 /** Public provider flags (no secrets) for `GET /api/auth/providers`. */
 export function listAuthProviders() {
-	return getAuthProvidersPublic(providerEnv())
+	return {
+		...getAuthProvidersPublic(providerEnv()),
+		captcha: getCaptchaPublic(captchaEnv()),
+	}
 }
 
 export type Session = typeof auth.$Infer.Session

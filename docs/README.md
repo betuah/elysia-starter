@@ -4,7 +4,7 @@ Detailed guides for Elysia Starter. Start with the root [README](../README.md) f
 
 | Topic | Doc |
 | --- | --- |
-| Auth, ACL, ownership, providers | [auth.md](./auth.md) |
+| Auth, ACL, ownership, providers (macros → `user` / `user.id` in context) | [auth.md](./auth.md) |
 | Input sanitize & response safety | [security.md](./security.md) |
 | API response envelope | [api-response.md](./api-response.md) |
 | Feature modules | [modules.md](./modules.md) |

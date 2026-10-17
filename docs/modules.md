@@ -34,9 +34,11 @@ Simpler modules (health, i18n probe, auth-providers) may only need `index.ts`.
 
 ## Auth on routes
 
-Use `authPlugin` macros:
+Use `authPlugin` macros (`.use(authPlugin)` on the module):
 
 - `auth: true` — require session
 - `permission: { note: ["create"] }` — require ACL
 
-See [auth.md](./auth.md), [api-response.md](./api-response.md), [database.md](./database.md).
+After either macro, handlers get `user` (`Actor` with `id`, …), `sessionId`, and `locale` — use `user.id`; do not parse the cookie/bearer manually. Details: [auth.md — Route macros and request context](./auth.md#route-macros-and-request-context).
+
+See also [api-response.md](./api-response.md), [database.md](./database.md).

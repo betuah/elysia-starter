@@ -163,5 +163,7 @@ describe("auth.providers gating", () => {
 		expect(JSON.stringify(publicFlags)).not.toContain("secret")
 		expect(publicFlags).not.toHaveProperty("oidc")
 		expect(publicFlags).not.toHaveProperty("googleOneTap")
+		expect(publicFlags).not.toHaveProperty("captcha")
 	})
 })
+

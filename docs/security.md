@@ -12,6 +12,26 @@
 
 Also configured: CORS, security headers, rate limit, secure cookies in production. See root README Features and `.env.example` (`TRUSTED_ORIGINS`, etc.).
 
+## CSRF (Better Auth)
+
+Better Auth **already protects cookie-based sessions against CSRF** — no custom CSRF middleware in this starter.
+
+| Mechanism | Behavior here |
+| --- | --- |
+| **`trustedOrigins`** | From `TRUSTED_ORIGINS` (+ SSO issuer origin when SSO is on) in `src/auth/index.ts`. Untrusted `Origin` / `Referer` rejected on cookie/auth flows. |
+| **SameSite cookies** | Better Auth default `SameSite=Lax` on session cookies. |
+| **Fetch Metadata** | Extra first-login CSRF checks on email sign-in/sign-up (form-style requests). |
+| **Secure cookies** | `advanced.useSecureCookies` when `NODE_ENV=production`. |
+| **CORS** | `@elysia/cors` `origin: env.TRUSTED_ORIGINS` + `credentials: true` in `src/app.ts`. |
+
+**Bearer tokens** (`Authorization: Bearer` / `set-auth-token`) are not CSRF-vulnerable the same way: the browser does not attach them automatically to cross-site requests. CSRF risk is primarily **cookie** sessions from a browser SPA — keep the SPA origin in `TRUSTED_ORIGINS`.
+
+Do **not** set Better Auth `disableCSRFCheck` unless you fully understand the risk. Details: [Better Auth security](https://www.better-auth.com/docs/reference/security).
+
+## Captcha (optional)
+
+Gate: `CAPTCHA_ENABLED=true` + `CAPTCHA_PROVIDER` + `CAPTCHA_SECRET_KEY` (default **off**). Official Better Auth `captcha` plugin; client sends `x-captcha-response`. See [auth.md](./auth.md#captcha).
+
 ## Rate limiting
 
 - Implementation: in-memory map in `src/plugins/rate-limit.ts` (window + max from `RATE_LIMIT_*`).

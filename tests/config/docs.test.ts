@@ -3,6 +3,7 @@ import { describe, expect, it } from "bun:test"
 import {
 	authorizeDocsBasicAuth,
 	docsPathRequiresAuth,
+	evaluateDocsBasicAuthRequirement,
 	isDocsBasicAuthConfigured,
 	resolveDocsEnabled,
 } from "../../src/config/docs"
@@ -24,6 +25,52 @@ describe("config.docs", () => {
 		expect(isDocsBasicAuthConfigured("u", undefined)).toBe(false)
 		expect(isDocsBasicAuthConfigured(undefined, "p")).toBe(false)
 		expect(isDocsBasicAuthConfigured("u", "p")).toBe(true)
+	})
+
+	it("requires basic auth in production when docs are enabled", () => {
+		expect(
+			evaluateDocsBasicAuthRequirement({
+				docsEnabled: true,
+				user: undefined,
+				password: undefined,
+				nodeEnv: "production",
+			}).action,
+		).toBe("throw")
+		expect(
+			evaluateDocsBasicAuthRequirement({
+				docsEnabled: true,
+				user: "docs",
+				password: "change-me",
+				nodeEnv: "production",
+			}).action,
+		).toBe("ok")
+		expect(
+			evaluateDocsBasicAuthRequirement({
+				docsEnabled: false,
+				user: undefined,
+				password: undefined,
+				nodeEnv: "production",
+			}).action,
+		).toBe("ok")
+	})
+
+	it("warns in development when docs enabled without credentials", () => {
+		expect(
+			evaluateDocsBasicAuthRequirement({
+				docsEnabled: true,
+				user: undefined,
+				password: undefined,
+				nodeEnv: "development",
+			}).action,
+		).toBe("warn")
+		expect(
+			evaluateDocsBasicAuthRequirement({
+				docsEnabled: true,
+				user: undefined,
+				password: undefined,
+				nodeEnv: "test",
+			}).action,
+		).toBe("ok")
 	})
 
 	it("matches docs and auth reference paths", () => {

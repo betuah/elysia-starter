@@ -47,6 +47,12 @@ describe("module.health", () => {
 					signInUri: "http://localhost:3000/api/auth/sign-in/sso",
 					signOutUri: "http://localhost:3000/api/auth/sign-out",
 				},
+				captcha: {
+					enabled: false,
+					provider: null,
+					siteKey: null,
+					endpoints: [],
+				},
 			},
 		})
 		expect(providers.body.data).not.toHaveProperty("oidc")

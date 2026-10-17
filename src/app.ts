@@ -39,7 +39,14 @@ const base = new Elysia(elysiaOptions)
 			origin: env.TRUSTED_ORIGINS,
 			methods: ["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],
 			credentials: true,
-			allowedHeaders: ["Content-Type", "Authorization", "X-Request-Id", "Accept-Language"],
+			allowedHeaders: [
+				"Content-Type",
+				"Authorization",
+				"X-Request-Id",
+				"Accept-Language",
+				// Better Auth captcha plugin token (when CAPTCHA_ENABLED)
+				"x-captcha-response",
+			],
 			exposeHeaders: [
 				"set-auth-token",
 				"x-request-id",

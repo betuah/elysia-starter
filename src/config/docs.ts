@@ -4,7 +4,8 @@
  * - `DOCS_ENABLED` unset → on unless `NODE_ENV=production`
  * - Explicit `true`/`false` (or `1`/`0`) wins
  * - When off: Elysia `/docs` is not mounted; Better Auth openAPI plugin is omitted
- * - Optional HTTP Basic Auth when both `DOCS_BASIC_AUTH_USER` + `DOCS_BASIC_AUTH_PASSWORD` are set
+ * - Basic Auth: both `DOCS_BASIC_AUTH_USER` + `DOCS_BASIC_AUTH_PASSWORD` when set;
+ *   required in production when docs are enabled; warned in development if missing
  */
 
 export type ResolveDocsEnabledInput = {
@@ -23,6 +24,41 @@ export function isDocsBasicAuthConfigured(
 	password: string | undefined,
 ): boolean {
 	return Boolean(user && password)
+}
+
+export type DocsBasicAuthRequirementInput = {
+	docsEnabled: boolean
+	user: string | undefined
+	password: string | undefined
+	nodeEnv: "development" | "test" | "production"
+}
+
+/**
+ * When docs are enabled without Basic Auth credentials:
+ * - production → fail boot
+ * - development → warn (docs stay public)
+ * - test → allow (no noise in CI)
+ */
+export function evaluateDocsBasicAuthRequirement(
+	input: DocsBasicAuthRequirementInput,
+): { action: "ok" } | { action: "throw"; message: string } | { action: "warn"; message: string } {
+	if (!input.docsEnabled) return { action: "ok" }
+	if (isDocsBasicAuthConfigured(input.user, input.password)) return { action: "ok" }
+
+	const message =
+		"DOCS_ENABLED is on but DOCS_BASIC_AUTH_USER / DOCS_BASIC_AUTH_PASSWORD are unset — docs are public. Set both credentials (see .env.example)."
+
+	if (input.nodeEnv === "production") {
+		return {
+			action: "throw",
+			message:
+				"DOCS_ENABLED=true in production requires DOCS_BASIC_AUTH_USER and DOCS_BASIC_AUTH_PASSWORD. Set both, or set DOCS_ENABLED=false.",
+		}
+	}
+	if (input.nodeEnv === "development") {
+		return { action: "warn", message }
+	}
+	return { action: "ok" }
 }
 
 /** Paths that expose API schemas / Scalar UIs when docs are enabled. */

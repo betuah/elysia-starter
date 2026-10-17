@@ -8,3 +8,6 @@ process.env.RATE_LIMIT_MAX = "10000"
 process.env.PORT = "3000"
 process.env.STORAGE_DRIVER = "local"
 process.env.STORAGE_LOCAL_DIR = `${process.env.TMPDIR ?? "/tmp"}/elysia-starter-storage-test`
+// Keep docs public in tests even if local `.env` sets DOCS_BASIC_AUTH_*.
+delete process.env.DOCS_BASIC_AUTH_USER
+delete process.env.DOCS_BASIC_AUTH_PASSWORD

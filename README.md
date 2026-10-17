@@ -6,16 +6,16 @@ Starter API Bun + Elysia with Better Auth, role ACL, ownership (“own data only
 
 Capabilities already in this starter (details in linked docs):
 
-- **Auth** — local email/password, email verification, forgot/reset, Google sign-in (+ One Tap), SSO (OIDC-compatible, env-gated via `AUTH_SSO_*`), session cookie + bearer, admin create/ban/delete/set-role; `GET /api/auth/providers` — [docs/auth.md](docs/auth.md)
-- **Permission-based & role-based ACL** — roles `user` \| `admin` in `src/auth/permissions.ts`; route macros `auth` / `permission`; ownership via `assertOwnerOrPermission` — [docs/auth.md](docs/auth.md)
+- **Auth** — local email/password, email verification, forgot/reset, Google sign-in (+ One Tap), SSO (OIDC-compatible, env-gated via `AUTH_SSO_*`), optional captcha (`CAPTCHA_ENABLED` + Turnstile/reCAPTCHA/hCaptcha/CaptchaFox), session cookie + bearer (CSRF via Better Auth `trustedOrigins`), admin create/ban/delete/set-role; `GET /api/auth/providers` — [docs/auth.md](docs/auth.md)
+- **Permission-based & role-based ACL** — roles `user` \| `admin` in `src/auth/permissions.ts`; route macros `auth` / `permission` inject `user` (use `user.id` — no manual cookie/bearer parse); ownership via `assertOwnerOrPermission` — [docs/auth.md](docs/auth.md#route-macros-and-request-context)
 - **File upload** — shared `getStorage()`: `local` or S3-compatible (MinIO / Wasabi / RustFS / AWS); server-mediated `put()`; optional S3 put/get presign; avatar example `POST /api/users/me/avatar` — [docs/storage.md](docs/storage.md)
 - **Database & migrations** — Postgres only (Drizzle); schema by domain under `src/db/schema/`; `bun run db:migrate` (or boot with `RUN_MIGRATIONS=true`) — [docs/database.md](docs/database.md)
 - **Module-based** — feature folders with layered `index` / `model` / `service` / `repository` — [docs/modules.md](docs/modules.md)
 - **API envelope** — uniform `{ code, message, data }`; lists with `meta`; validation `errors[]` via `ok` / `okList` / `failT` — [docs/api-response.md](docs/api-response.md)
-- **Security** — CORS, security headers, rate limit, Elysia input `sanitize`, public DTOs — [docs/security.md](docs/security.md)
+- **Security** — CORS, CSRF (Better Auth origin/SameSite), optional captcha, security headers, rate limit, Elysia input `sanitize`, public DTOs — [docs/security.md](docs/security.md)
 - **Email templating** — React Email (`bun run email`) + SMTP / console mock — [docs/email.md](docs/email.md)
 - **i18n** — `en` + `id`; cookie / query / `Accept-Language` — [docs/i18n.md](docs/i18n.md)
-- **Docs gating** — Scalar `/docs`, auth reference `/api/auth/reference`; `DOCS_ENABLED` + optional Basic Auth — [docs/openapi-docs.md](docs/openapi-docs.md)
+- **Docs gating** — Scalar `/docs`, auth reference `/api/auth/reference`; `DOCS_ENABLED` + Basic Auth (`DOCS_BASIC_AUTH_*`; required in production when docs on) — [docs/openapi-docs.md](docs/openapi-docs.md)
 - **Cluster / cron** — primary forks workers; cron primary-only when clustered — [docs/cluster.md](docs/cluster.md)
 - **Docker** — compiled binary + distroless; compose `api` + `db` — [docs/docker.md](docs/docker.md)
 - **Testing** — per-feature tests; PGlite in-memory (no Postgres server in CI) — [docs/testing.md](docs/testing.md)
@@ -82,7 +82,7 @@ bun run db:generate / db:migrate / db:push / db:studio
 
 ### Configuration
 
-See `.env.example`. Important: `BETTER_AUTH_*`, `TRUSTED_ORIGINS`, `DATABASE_URL` (Postgres), `ADMIN_*` / `USER_*`, `AUTH_GOOGLE_*` / `GOOGLE_*`, `AUTH_SSO_*`, `DEFAULT_LOCALE` / `SUPPORTED_LOCALES`, `SMTP_*` / `EMAIL_FROM`, `CRON_ENABLED`, `CLUSTER_WORKERS`, `APP_URL`, `STORAGE_DRIVER` / `S3_*`, `DOCS_ENABLED` / `DOCS_BASIC_AUTH_*`.
+See `.env.example`. Important: `BETTER_AUTH_*`, `TRUSTED_ORIGINS`, `DATABASE_URL` (Postgres), `ADMIN_*` / `USER_*`, `AUTH_GOOGLE_*` / `GOOGLE_*`, `AUTH_SSO_*`, `CAPTCHA_*`, `DEFAULT_LOCALE` / `SUPPORTED_LOCALES`, `SMTP_*` / `EMAIL_FROM`, `CRON_ENABLED`, `CLUSTER_WORKERS`, `APP_URL`, `STORAGE_DRIVER` / `S3_*`, `DOCS_ENABLED` / `DOCS_BASIC_AUTH_*`.
 
 **Do not commit secrets** — copy from `.env.example` only.
 

@@ -1,4 +1,11 @@
-import { resolveDocsEnabled } from "./config/docs"
+import {
+	isCaptchaProviderId,
+	type CaptchaProviderId,
+} from "./auth/captcha"
+import {
+	evaluateDocsBasicAuthRequirement,
+	resolveDocsEnabled,
+} from "./config/docs"
 import { resolveDatabaseConnection } from "./db/config"
 
 export type NodeEnv = "development" | "test" | "production"
@@ -192,6 +199,42 @@ if (storageDriverValue === "s3") {
 	}
 }
 
+/** Captcha — Better Auth plugin; off unless CAPTCHA_ENABLED + provider + secret. */
+const captchaEnabledFlag = flag("CAPTCHA_ENABLED")
+const captchaProviderRaw = optional("CAPTCHA_PROVIDER")?.trim().toLowerCase()
+const captchaProvider: CaptchaProviderId | undefined = (() => {
+	if (!captchaProviderRaw) return undefined
+	if (!isCaptchaProviderId(captchaProviderRaw)) {
+		throw new Error(
+			`CAPTCHA_PROVIDER must be one of: cloudflare-turnstile, google-recaptcha, hcaptcha, captchafox. Received "${captchaProviderRaw}".`,
+		)
+	}
+	return captchaProviderRaw
+})()
+const captchaSecretKey = optional("CAPTCHA_SECRET_KEY")
+const captchaSiteKey = optional("CAPTCHA_SITE_KEY")
+const captchaMinScore = (() => {
+	const raw = process.env.CAPTCHA_MIN_SCORE
+	if (raw === undefined || raw.trim() === "") return undefined
+	const value = Number(raw)
+	if (!Number.isFinite(value) || value < 0 || value > 1) {
+		throw new Error(`CAPTCHA_MIN_SCORE must be a number between 0 and 1. Received "${raw}".`)
+	}
+	return value
+})()
+
+if (captchaEnabledFlag) {
+	const missing = [
+		!captchaProvider && "CAPTCHA_PROVIDER",
+		!captchaSecretKey && "CAPTCHA_SECRET_KEY",
+	].filter(Boolean)
+	if (missing.length > 0) {
+		throw new Error(
+			`CAPTCHA_ENABLED=true requires ${missing.join(" and ")}. Set credentials or set CAPTCHA_ENABLED=false.`,
+		)
+	}
+}
+
 /** Postgres connection — DATABASE_URL required unless USE_PGLITE / NODE_ENV=test. */
 const database = resolveDatabaseConnection(process.env as {
 	NODE_ENV?: string
@@ -297,6 +340,22 @@ export const env = {
 	 */
 	REQUIRE_EMAIL_VERIFICATION: process.env.REQUIRE_EMAIL_VERIFICATION === "true",
 	/**
+	 * Better Auth captcha plugin (`better-auth/plugins` `captcha`).
+	 * Default off. When true, requires `CAPTCHA_PROVIDER` + `CAPTCHA_SECRET_KEY`.
+	 * Client sends token in `x-captcha-response` on protected auth paths.
+	 * @see https://better-auth.com/docs/plugins/captcha
+	 */
+	CAPTCHA_ENABLED: captchaEnabledFlag,
+	CAPTCHA_PROVIDER: captchaProvider,
+	CAPTCHA_SECRET_KEY: captchaSecretKey,
+	/** Public site key for SPA widgets (safe to expose via `/api/auth/providers`). */
+	CAPTCHA_SITE_KEY: captchaSiteKey,
+	/** reCAPTCHA v3 score threshold (0–1). Unset → plugin default 0.5. */
+	CAPTCHA_MIN_SCORE: captchaMinScore,
+	/** Effective: toggle + provider + secret. */
+	CAPTCHA_EFFECTIVE:
+		captchaEnabledFlag && Boolean(captchaProvider && captchaSecretKey),
+	/**
 	 * Master switch for `@elysia/cron` jobs. Default false (quiet in dev/test).
 	 * Under cluster, cron runs on the primary only — see `src/config/cron.ts`.
 	 */
@@ -358,8 +417,9 @@ export const env = {
 		nodeEnv: environment,
 	}),
 	/**
-	 * Optional HTTP Basic Auth for docs surfaces (`/docs`, `/docs/json`,
+	 * HTTP Basic Auth for docs surfaces (`/docs`, `/docs/json`,
 	 * `/api/auth/reference`, `/api/auth/open-api/*`). Both must be set together.
+	 * Required in production when `DOCS_ENABLED`; recommended in development.
 	 */
 	DOCS_BASIC_AUTH_USER: optional("DOCS_BASIC_AUTH_USER"),
 	DOCS_BASIC_AUTH_PASSWORD: optional("DOCS_BASIC_AUTH_PASSWORD"),
@@ -371,4 +431,17 @@ if (Boolean(docsUser) !== Boolean(docsPassword)) {
 	throw new Error(
 		"DOCS_BASIC_AUTH_USER and DOCS_BASIC_AUTH_PASSWORD must both be set, or both omitted.",
 	)
+}
+
+const docsBasicAuthRequirement = evaluateDocsBasicAuthRequirement({
+	docsEnabled: env.DOCS_ENABLED,
+	user: docsUser,
+	password: docsPassword,
+	nodeEnv: environment,
+})
+if (docsBasicAuthRequirement.action === "throw") {
+	throw new Error(docsBasicAuthRequirement.message)
+}
+if (docsBasicAuthRequirement.action === "warn") {
+	console.warn(docsBasicAuthRequirement.message)
 }
