@@ -22,6 +22,9 @@ import { security } from "./plugins/security"
 import { storageStatic } from "./plugins/storage-static"
 
 const clustered = shouldUseCluster(resolveClusterWorkers(env.CLUSTER_WORKERS), env.NODE_ENV)
+// ENABLE_CRON is read from process.env (not `env`) on purpose: it is a per-fork
+// escape hatch set via cluster.fork({ ENABLE_CRON: "true" }) on exactly one worker.
+// Putting it on the shared `env` object would imply a global toggle like CRON_ENABLED.
 const attachCron = shouldAttachCronToHttpApp({
 	cronEnabled: env.CRON_ENABLED,
 	clustered,

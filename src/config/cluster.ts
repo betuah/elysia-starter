@@ -30,6 +30,18 @@ export function warnClusterPlatform(workers: number, platform: NodeJS.Platform =
 	)
 }
 
+/**
+ * In-memory rate limits are per-process. With multiple workers, each process has its own
+ * counters — effective limits scale with worker count. Prefer single process or an external
+ * store before recommending cluster in production. See docs/cluster.md and docs/security.md.
+ */
+export function warnClusterRateLimitMemory(workers: number): void {
+	if (workers <= 1) return
+	console.warn(
+		`[cluster] In-memory rate limiting is per-process (not shared across ${workers} workers). Use CLUSTER_WORKERS=0/1 or an external rate-limit store before production multi-worker deploy.`,
+	)
+}
+
 /** Cluster stays off unless CLUSTER_WORKERS is set, even in production. */
 export function shouldUseCluster(workers: number, _nodeEnv: NodeEnv): boolean {
 	return workers > 1

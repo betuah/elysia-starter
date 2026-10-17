@@ -17,7 +17,4 @@ async function createDatabase(): Promise<AppSqlDatabase> {
  */
 export const db: AppSqlDatabase = await createDatabase()
 
-/** @deprecated Prefer importing `db` — kept as alias for older call sites. */
-export const database = db
-
 export type { AppSqlDatabase } from "./types"

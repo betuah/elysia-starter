@@ -35,6 +35,13 @@ const { key, url, path } = await storage.put({
 
 ### Flow 2 — optional put/get presign (S3 only)
 
+Presign helpers take a **storage key** (same key space as `put` / `get`). `STORAGE_PREFIX` is applied by the adapter when resolving the object path — you do **not** need a different URL prefix for put vs get.
+
+| Helper | Method | Typical use |
+| --- | --- | --- |
+| `createPutPresignedUrl(key)` | HTTP PUT to the bucket | Client uploads directly; skip server `put()` body |
+| `createGetPresignedUrl(key)` | HTTP GET from the bucket | Temporary download when no CDN (`S3_PUBLIC_URL`) |
+
 ```ts
 const putUrl = await storage.createPutPresignedUrl("uploads/client.bin", {
   contentType: "application/octet-stream",

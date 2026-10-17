@@ -1,6 +1,10 @@
 import { describe, expect, it } from "bun:test"
 
-import { resolveClusterWorkers, shouldUseCluster } from "../../src/config/cluster"
+import {
+	resolveClusterWorkers,
+	shouldUseCluster,
+	warnClusterRateLimitMemory,
+} from "../../src/config/cluster"
 import { serveOptions } from "../../src/config/server"
 
 describe("config.cluster", () => {
@@ -23,5 +27,21 @@ describe("config.cluster", () => {
 
 	it("keeps reusePort enabled for SO_REUSEPORT", () => {
 		expect(serveOptions.reusePort).toBe(true)
+	})
+
+	it("warns about per-process rate limits when workers > 1", () => {
+		const warnings: string[] = []
+		const original = console.warn
+		console.warn = (...args: unknown[]) => {
+			warnings.push(args.map(String).join(" "))
+		}
+		try {
+			warnClusterRateLimitMemory(1)
+			expect(warnings).toHaveLength(0)
+			warnClusterRateLimitMemory(4)
+			expect(warnings.some((line) => line.includes("per-process"))).toBe(true)
+		} finally {
+			console.warn = original
+		}
 	})
 })

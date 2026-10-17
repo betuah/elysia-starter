@@ -5,7 +5,7 @@ import {
 	docsPathRequiresAuth,
 	isDocsBasicAuthConfigured,
 } from "../config/docs"
-import { env } from "../env"
+import { env, type NodeEnv } from "../env"
 import { createRateLimiter } from "./rate-limit"
 
 const limiter = createRateLimiter({
@@ -18,15 +18,33 @@ const docsBasicAuthOn =
 	env.DOCS_ENABLED &&
 	isDocsBasicAuthConfigured(env.DOCS_BASIC_AUTH_USER, env.DOCS_BASIC_AUTH_PASSWORD)
 
-function clientKey(request: Request) {
-	if (env.TRUST_PROXY) {
+/**
+ * Client identity for rate limiting.
+ * `x-test-ip` is honored only when `NODE_ENV === "test"` — never in development/production.
+ */
+export function resolveClientKey(
+	request: Request,
+	options: { trustProxy: boolean; nodeEnv: NodeEnv } = {
+		trustProxy: env.TRUST_PROXY,
+		nodeEnv: env.NODE_ENV,
+	},
+) {
+	if (options.trustProxy) {
 		const forwarded = request.headers.get("x-forwarded-for")?.split(",")[0]?.trim()
 		if (forwarded) return forwarded
 		const realIp = request.headers.get("x-real-ip")?.trim()
 		if (realIp) return realIp
 	}
 
-	return request.headers.get("x-test-ip") ?? "local"
+	if (options.nodeEnv === "test") {
+		return request.headers.get("x-test-ip") ?? "local"
+	}
+
+	return "local"
+}
+
+function clientKey(request: Request) {
+	return resolveClientKey(request)
 }
 
 function unauthorizedDocs() {

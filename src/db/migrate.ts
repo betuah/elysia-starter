@@ -1,10 +1,9 @@
-import { join } from "node:path"
-
 import { drizzle as drizzlePostgres } from "drizzle-orm/postgres-js"
 import { migrate as migratePostgres } from "drizzle-orm/postgres-js/migrator"
 import postgres from "postgres"
 
 import { env } from "../env"
+import { MIGRATIONS_FOLDER } from "./migrations-folder"
 import * as schema from "./schema"
 
 /**
@@ -27,7 +26,7 @@ export async function runBootMigrations(): Promise<void> {
 	try {
 		const db = drizzlePostgres(client, { schema })
 		await migratePostgres(db, {
-			migrationsFolder: join(import.meta.dir, "../../drizzle"),
+			migrationsFolder: MIGRATIONS_FOLDER,
 		})
 	} finally {
 		await client.end({ timeout: 5 })

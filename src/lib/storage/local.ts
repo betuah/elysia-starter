@@ -99,7 +99,7 @@ export class LocalStorageAdapter implements StorageAdapter {
 		return null
 	}
 
-	/** Optional presign unsupported on local — use `getPublicUrl()` / `GET /api/files/{key}`. */
+	/** Optional presign unsupported on local — use `getPublicUrl()` / `GET /uploads/{key}`. */
 	async createGetPresignedUrl(
 		_key: string,
 		_opts?: PresignGetOptions,

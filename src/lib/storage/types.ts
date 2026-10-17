@@ -76,7 +76,7 @@ export interface StorageAdapter {
 	): Promise<PresignedUrlResult | null>
 	/**
 	 * Optional. S3: Bun-native GET presigned URL (client downloads directly from the bucket).
-	 * Local: `null` — use `getPublicUrl()` / `GET /api/files/{key}`.
+	 * Local: `null` — use `getPublicUrl()` / `GET /uploads/{key}`.
 	 */
 	createGetPresignedUrl(
 		key: string,
@@ -92,7 +92,7 @@ export type LocalStorageConfig = {
 	prefix: string
 	/**
 	 * Base URL for `getPublicUrl` (no trailing slash).
-	 * Default: `{APP_URL}/api/files`.
+	 * Default: `{APP_URL}/uploads`.
 	 */
 	publicUrlBase: string
 }

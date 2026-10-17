@@ -1,10 +1,9 @@
-import { join } from "node:path"
-
 import { PGlite } from "@electric-sql/pglite"
 import { drizzle } from "drizzle-orm/pglite"
 import { migrate } from "drizzle-orm/pglite/migrator"
 
 import { env } from "../../env"
+import { MIGRATIONS_FOLDER } from "../migrations-folder"
 import * as schema from "../schema"
 
 /**
@@ -15,7 +14,7 @@ export async function openPglite() {
 	const client = new PGlite()
 	const db = drizzle(client, { schema })
 	if (env.RUN_MIGRATIONS) {
-		await migrate(db, { migrationsFolder: join(import.meta.dir, "../../../drizzle") })
+		await migrate(db, { migrationsFolder: MIGRATIONS_FOLDER })
 	}
 	return db
 }

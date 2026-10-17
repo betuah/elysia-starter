@@ -272,7 +272,8 @@ export const env = {
 		authGoogleEnabled && Boolean(googleClientId && googleClientSecret),
 	/**
 	 * Enterprise SSO via `@better-auth/sso` (OIDC/SAML).
-	 * Prefer `AUTH_SSO_*`; `AUTH_OIDC_*` is an alias for the same values.
+	 * Prefer `AUTH_SSO_*`. Legacy `AUTH_OIDC_*` process.env names are still read
+	 * as a silent fallback when parsing (not exported on this object).
 	 * @see https://better-auth.com/docs/plugins/sso
 	 */
 	AUTH_SSO_ENABLED: authSsoEnabled,
@@ -290,28 +291,6 @@ export const env = {
 	AUTH_SSO_SCOPES: ssoScopes,
 	/** Effective SSO: toggle + credentials + issuer + discovery or auth/token URLs. */
 	SSO_ENABLED: ssoEffectivelyEnabled,
-	/** @deprecated Alias of `AUTH_SSO_ENABLED`. */
-	AUTH_OIDC_ENABLED: authSsoEnabled,
-	/** @deprecated Alias of `AUTH_SSO_PROVIDER_ID`. */
-	AUTH_OIDC_PROVIDER_ID: ssoProviderId,
-	/** @deprecated Alias of `AUTH_SSO_NAME`. */
-	AUTH_OIDC_NAME: ssoName,
-	/** @deprecated Alias of `AUTH_SSO_CLIENT_ID`. */
-	AUTH_OIDC_CLIENT_ID: ssoClientId,
-	/** @deprecated Alias of `AUTH_SSO_CLIENT_SECRET`. */
-	AUTH_OIDC_CLIENT_SECRET: ssoClientSecret,
-	/** @deprecated Alias of `AUTH_SSO_DISCOVERY_URL`. */
-	AUTH_OIDC_DISCOVERY_URL: ssoDiscovery,
-	/** @deprecated Alias of `AUTH_SSO_AUTHORIZATION_URL`. */
-	AUTH_OIDC_AUTHORIZATION_URL: ssoAuthUrl,
-	/** @deprecated Alias of `AUTH_SSO_TOKEN_URL`. */
-	AUTH_OIDC_TOKEN_URL: ssoTokenUrl,
-	/** @deprecated Alias of `AUTH_SSO_USERINFO_URL`. */
-	AUTH_OIDC_USERINFO_URL: ssoUserInfoUrl,
-	/** @deprecated Alias of `AUTH_SSO_SCOPES`. */
-	AUTH_OIDC_SCOPES: ssoScopes,
-	/** @deprecated Alias of `SSO_ENABLED`. */
-	OIDC_ENABLED: ssoEffectivelyEnabled,
 	/**
 	 * Require email verification before sign-in. Default false for local MVP;
 	 * verification emails still send when handlers are configured.

@@ -20,6 +20,7 @@ import {
 	resolveClusterWorkers,
 	shouldUseCluster,
 	warnClusterPlatform,
+	warnClusterRateLimitMemory,
 } from "./config/cluster"
 import { shouldRunCronOnPrimary } from "./config/cron"
 import { env } from "./env"
@@ -29,6 +30,7 @@ const clustered = shouldUseCluster(workers, env.NODE_ENV)
 
 if (clustered && cluster.isPrimary) {
 	warnClusterPlatform(workers)
+	warnClusterRateLimitMemory(workers)
 
 	// Not in the docs sample — starter needs one migrate before workers open the DB.
 	if (env.RUN_MIGRATIONS) {

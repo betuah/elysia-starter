@@ -6,24 +6,19 @@ Starter API Bun + Elysia with Better Auth, role ACL, ownership (“own data only
 
 Capabilities already in this starter (details in linked docs):
 
-| Area | What’s included | Doc |
-| --- | --- | --- |
-| **Auth** | Email/password, session cookie + bearer, forgot/reset, email verification, admin create/ban/delete/set-role | [docs/auth.md](docs/auth.md) |
-| **ACL** | Roles `user` \| `admin` in `src/auth/permissions.ts`; route macros `auth` / `permission` | [docs/auth.md](docs/auth.md) |
-| **Ownership** | `assertOwnerOrPermission` so regular users only access their own rows | [docs/auth.md](docs/auth.md) |
-| **SSO / Google** | Google sign-in + One Tap, enterprise SSO (env-gated); `GET /api/auth/providers` | [docs/auth.md](docs/auth.md) |
-| **API envelope** | Uniform `{ code, message, data }`; lists with `meta`; validation `errors[]` via `ok` / `okList` / `failT` | [docs/api-response.md](docs/api-response.md) |
-| **Security** | CORS, security headers, rate limit, Elysia input `sanitize`, public DTOs | [docs/security.md](docs/security.md) |
-| **Storage** | Shared `getStorage()` — `local` \| `s3` (Bun `S3Client`); server `put()`; optional S3 presign | [docs/storage.md](docs/storage.md) |
-| **Avatar** | `POST /api/users/me/avatar` → multipart → `getStorage().put` → `user.image` | [docs/storage.md](docs/storage.md) |
-| **Email** | React Email templates (`bun run email`) + SMTP / console mock | [docs/email.md](docs/email.md) |
-| **i18n** | `en` + `id`; cookie / query / `Accept-Language` | [docs/i18n.md](docs/i18n.md) |
-| **Docs** | Scalar `/docs`, auth reference `/api/auth/reference`; `DOCS_ENABLED` + optional Basic Auth | [docs/openapi-docs.md](docs/openapi-docs.md) |
-| **Database** | Postgres only (Drizzle); schema by domain under `src/db/schema/` | [docs/database.md](docs/database.md) |
-| **Cluster / cron** | Primary fork workers; cron primary-only when clustered | [docs/cluster.md](docs/cluster.md) |
-| **Docker** | Compiled binary + distroless; compose `api` + `db` | [docs/docker.md](docs/docker.md) |
-| **Testing** | Per-feature tests; PGlite in-memory (no Postgres server in CI) | [docs/testing.md](docs/testing.md) |
-| **Modules** | Feature folders: `index` / `model` / `service` / `repository` | [docs/modules.md](docs/modules.md) |
+- **Auth** — local email/password, email verification, forgot/reset, Google sign-in (+ One Tap), SSO (OIDC-compatible, env-gated via `AUTH_SSO_*`), session cookie + bearer, admin create/ban/delete/set-role; `GET /api/auth/providers` — [docs/auth.md](docs/auth.md)
+- **Permission-based & role-based ACL** — roles `user` \| `admin` in `src/auth/permissions.ts`; route macros `auth` / `permission`; ownership via `assertOwnerOrPermission` — [docs/auth.md](docs/auth.md)
+- **File upload** — shared `getStorage()`: `local` or S3-compatible (MinIO / Wasabi / RustFS / AWS); server-mediated `put()`; optional S3 put/get presign; avatar example `POST /api/users/me/avatar` — [docs/storage.md](docs/storage.md)
+- **Database & migrations** — Postgres only (Drizzle); schema by domain under `src/db/schema/`; `bun run db:migrate` (or boot with `RUN_MIGRATIONS=true`) — [docs/database.md](docs/database.md)
+- **Module-based** — feature folders with layered `index` / `model` / `service` / `repository` — [docs/modules.md](docs/modules.md)
+- **API envelope** — uniform `{ code, message, data }`; lists with `meta`; validation `errors[]` via `ok` / `okList` / `failT` — [docs/api-response.md](docs/api-response.md)
+- **Security** — CORS, security headers, rate limit, Elysia input `sanitize`, public DTOs — [docs/security.md](docs/security.md)
+- **Email templating** — React Email (`bun run email`) + SMTP / console mock — [docs/email.md](docs/email.md)
+- **i18n** — `en` + `id`; cookie / query / `Accept-Language` — [docs/i18n.md](docs/i18n.md)
+- **Docs gating** — Scalar `/docs`, auth reference `/api/auth/reference`; `DOCS_ENABLED` + optional Basic Auth — [docs/openapi-docs.md](docs/openapi-docs.md)
+- **Cluster / cron** — primary forks workers; cron primary-only when clustered — [docs/cluster.md](docs/cluster.md)
+- **Docker** — compiled binary + distroless; compose `api` + `db` — [docs/docker.md](docs/docker.md)
+- **Testing** — per-feature tests; PGlite in-memory (no Postgres server in CI) — [docs/testing.md](docs/testing.md)
 
 ## Table of contents
 

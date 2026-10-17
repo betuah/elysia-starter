@@ -1,6 +1,6 @@
 import { describe, expect, it } from "bun:test"
 
-import { hasPermission, roleNames } from "../../src/auth/permissions"
+import { hasPermission, permissionsFor, roleNames } from "../../src/auth/permissions"
 import { createRateLimiter } from "../../src/plugins/rate-limit"
 
 describe("auth.permissions", () => {
@@ -27,6 +27,15 @@ describe("auth.permissions", () => {
 		expect(hasPermission("editor", { user: ["list"] })).toBe(false)
 		expect(hasPermission("owner", { user: ["list"] })).toBe(false)
 	})
+
+	it("ORs comma-separated roles for hasPermission and permissionsFor", () => {
+		expect(hasPermission("user,admin", { user: ["ban"] })).toBe(true)
+		const merged = permissionsFor("user,admin")
+		expect(merged.user).toContain("ban")
+		expect(merged.user).toContain("list")
+		expect(merged.session).toContain("revoke")
+		expect(permissionsFor("user").user).toBeUndefined()
+	})
 })
 
 describe("rate limiter", () => {
@@ -36,5 +45,14 @@ describe("rate limiter", () => {
 		expect(limiter.check("client", 10).allowed).toBe(true)
 		expect(limiter.check("client", 20).allowed).toBe(false)
 		expect(limiter.check("client", 1_001).allowed).toBe(true)
+	})
+
+	it("evicts expired keys so the map does not grow forever", () => {
+		const limiter = createRateLimiter({ windowMs: 100, max: 5 })
+		limiter.check("a", 0)
+		limiter.check("b", 0)
+		expect(limiter.size()).toBe(2)
+		limiter.sweep(101)
+		expect(limiter.size()).toBe(0)
 	})
 })

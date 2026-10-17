@@ -11,3 +11,10 @@
 - If a password appears in a JSON response, that is a data-exposure bug — escaping does **not** make a secret safe. Do not put passwords in response models.
 
 Also configured: CORS, security headers, rate limit, secure cookies in production. See root README Features and `.env.example` (`TRUSTED_ORIGINS`, etc.).
+
+## Rate limiting
+
+- Implementation: in-memory map in `src/plugins/rate-limit.ts` (window + max from `RATE_LIMIT_*`).
+- Expired keys are swept periodically so the map does not grow forever.
+- **Cluster:** counters are per-process. With `CLUSTER_WORKERS > 1`, limits are not shared — use a single process or an external store before production multi-worker. Details: [cluster.md](./cluster.md).
+- Client key: when `TRUST_PROXY=true`, use `X-Forwarded-For` / `X-Real-IP`. The `x-test-ip` header is honored **only** when `NODE_ENV=test` (never in development/production).

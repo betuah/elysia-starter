@@ -158,4 +158,63 @@ describe("module.user http", () => {
 		})
 		expect(forbidden.response.status).toBe(403)
 	})
+
+	it("lets an admin ban, unban, and delete a user; blocks self-ban and self-delete", async () => {
+		const admin = await signUp("BanAdmin", `ban-admin-${stamp}@example.com`)
+		const peer = await signUp("BanPeer", `ban-peer-${stamp}@example.com`)
+		const target = await signUp("BanTarget", `ban-target-${stamp}@example.com`)
+		await userRepository.update(admin.user.id, { role: "admin" })
+		await userRepository.update(peer.user.id, { role: "admin" })
+
+		const selfBan = await request(`/api/users/${admin.user.id}/ban`, {
+			method: "POST",
+			headers: {
+				"content-type": "application/json",
+				authorization: `Bearer ${admin.token}`,
+			},
+			body: JSON.stringify({ reason: "nope" }),
+		})
+		expect(selfBan.response.status).toBe(409)
+		expect(selfBan.body.code).toBe("CONFLICT")
+
+		const banned = await request(`/api/users/${target.user.id}/ban`, {
+			method: "POST",
+			headers: {
+				"content-type": "application/json",
+				authorization: `Bearer ${admin.token}`,
+			},
+			body: JSON.stringify({ reason: "abuse" }),
+		})
+		expect(banned.response.status).toBe(200)
+		expect(banned.body.data.banned).toBe(true)
+
+		const unbanned = await request(`/api/users/${target.user.id}/unban`, {
+			method: "POST",
+			headers: { authorization: `Bearer ${admin.token}` },
+		})
+		expect(unbanned.response.status).toBe(200)
+		expect(unbanned.body.data.banned).toBe(false)
+
+		const selfDelete = await request(`/api/users/${admin.user.id}`, {
+			method: "DELETE",
+			headers: { authorization: `Bearer ${admin.token}` },
+		})
+		expect(selfDelete.response.status).toBe(409)
+		expect(selfDelete.body.code).toBe("CONFLICT")
+
+		const deleted = await request(`/api/users/${target.user.id}`, {
+			method: "DELETE",
+			headers: { authorization: `Bearer ${admin.token}` },
+		})
+		expect(deleted.response.status).toBe(200)
+		expect(deleted.body.data.deleted).toBe(true)
+
+		// Two admins remain — deleting a peer admin is allowed (last-admin demote covered in set-role test).
+		const deletedPeer = await request(`/api/users/${peer.user.id}`, {
+			method: "DELETE",
+			headers: { authorization: `Bearer ${admin.token}` },
+		})
+		expect(deletedPeer.response.status).toBe(200)
+		expect(deletedPeer.body.data.deleted).toBe(true)
+	})
 })

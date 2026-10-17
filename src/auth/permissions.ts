@@ -53,7 +53,26 @@ export function hasPermission(role: string | null | undefined, request: Permissi
 	})
 }
 
+/**
+ * Effective permission statements for a role string.
+ * Aligns with `hasPermission`: comma-separated roles are OR-merged (union of actions).
+ */
 export function permissionsFor(role: string | null | undefined) {
-	const name = role && isRoleName(role) ? role : "user"
-	return roleDefinitions[name].statements
+	const names = (role ?? "user")
+		.split(",")
+		.map((item) => item.trim())
+		.filter((item) => item.length > 0)
+
+	const valid = names.filter(isRoleName)
+	const roles: RoleName[] = valid.length > 0 ? valid : ["user"]
+
+	const merged: Record<string, string[]> = {}
+	for (const name of roles) {
+		const statements = roleDefinitions[name].statements as Record<string, readonly string[]>
+		for (const [resource, actions] of Object.entries(statements)) {
+			const set = new Set([...(merged[resource] ?? []), ...actions])
+			merged[resource] = [...set]
+		}
+	}
+	return merged
 }
