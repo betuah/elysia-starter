@@ -1,0 +1,25 @@
+---
+description: Uniform API envelope and failT errors
+globs: src/modules/**/*.ts,src/lib/response.ts,src/lib/error.ts,src/models/**/*.ts
+alwaysApply: false
+---
+
+# API response envelope
+
+Elysia modules only (not Better Auth `/api/auth/*`):
+
+- Success: `{ code, message, data }` via `ok(data)` / `okList(items, meta)` / `paginatedPage(...)`.
+- Error: `{ code, message }` via `fail` / `failT(locale, status, code, i18nKey)` — **no** `data`.
+- Validation (`VALIDATION`, 422): may include `errors: [{ field, message }]`.
+
+```ts
+// ✅ GOOD
+return ok(toPublicUser(row), { message: successMessage(locale) })
+failT(locale, 404, "NOT_FOUND", "errors.userNotFound")
+
+// ❌ BAD
+return { user: row }           // missing envelope
+return ok({ code, data })      // nesting envelope fields
+```
+
+Schemas: `successSchema`, `paginatedDataSchema`, `common.Error` in `src/models/`.

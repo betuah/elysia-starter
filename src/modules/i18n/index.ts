@@ -1,9 +1,22 @@
 import { Elysia, t } from "elysia"
 
 import { env } from "../../env"
-import { availableLocales } from "../../i18n"
+import { availableLocales, t as translate } from "../../i18n"
+import { ok } from "../../lib/response"
 import { sharedModels } from "../../models"
+import { successSchema } from "../../models/success"
 import { i18nPlugin } from "../../plugins/i18n"
+
+const localesData = t.Object({
+	locales: t.Array(
+		t.Object({
+			code: t.String({ trusted: true }),
+			name: t.String({ trusted: true }),
+		}),
+	),
+	current: t.String({ trusted: true }),
+	default: t.String({ trusted: true }),
+})
 
 export const i18nRoutes = new Elysia({
 	name: "module.i18n",
@@ -14,22 +27,17 @@ export const i18nRoutes = new Elysia({
 	.use(i18nPlugin)
 	.get(
 		"/locales",
-		({ locale }) => ({
-			locales: availableLocales(),
-			current: locale,
-			default: env.DEFAULT_LOCALE,
-		}),
+		({ locale }) =>
+			ok(
+				{
+					locales: availableLocales(),
+					current: locale,
+					default: env.DEFAULT_LOCALE,
+				},
+				{ message: translate(locale, "common.success") },
+			),
 		{
-			response: t.Object({
-				locales: t.Array(
-					t.Object({
-						code: t.String(),
-						name: t.String({ trusted: true }),
-					}),
-				),
-				current: t.String(),
-				default: t.String(),
-			}),
+			response: successSchema(localesData),
 			detail: {
 				summary: "Available locales and current negotiation result",
 			},

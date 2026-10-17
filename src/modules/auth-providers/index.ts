@@ -1,7 +1,9 @@
 import { Elysia, t } from "elysia"
 
 import { listAuthProviders } from "../../auth"
+import { ok } from "../../lib/response"
 import { sharedModels } from "../../models"
+import { successSchema } from "../../models/success"
 
 const googleProviderShape = t.Object({
 	enabled: t.Boolean(),
@@ -21,7 +23,7 @@ const ssoProviderShape = t.Object({
 	signOutUri: t.String({ trusted: true }),
 })
 
-const providersResponse = t.Object({
+const providersData = t.Object({
 	emailPassword: t.Literal(true),
 	google: googleProviderShape,
 	sso: ssoProviderShape,
@@ -37,8 +39,8 @@ export const authProviders = new Elysia({
 	tags: ["Auth"],
 })
 	.use(sharedModels)
-	.get("/providers", () => listAuthProviders(), {
-		response: { 200: providersResponse },
+	.get("/providers", () => ok(listAuthProviders()), {
+		response: { 200: successSchema(providersData) },
 		detail: {
 			tags: ["Auth"],
 			summary: "Enabled auth providers",

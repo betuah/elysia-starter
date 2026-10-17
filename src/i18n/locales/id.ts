@@ -5,6 +5,8 @@ export const id: Record<MessageKey, string> = {
 	"locales.en": "English",
 	"locales.id": "Bahasa Indonesia",
 
+	"common.success": "Berhasil",
+
 	"errors.unauthorized": "Autentikasi diperlukan",
 	"errors.forbidden": "Anda tidak memiliki izin untuk melakukan tindakan ini",
 	"errors.notFound": "Tidak ditemukan",

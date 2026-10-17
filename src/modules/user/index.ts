@@ -76,7 +76,7 @@ export const users = new Elysia({
 			},
 		},
 	)
-	.get("/me/access", ({ user }) => UserService.access(user), {
+	.get("/me/access", ({ user, locale }) => UserService.access(user, locale), {
 		auth: true,
 		response: { 200: "user.Access", ...guarded },
 		detail: { summary: "Permissions granted to the current role" },

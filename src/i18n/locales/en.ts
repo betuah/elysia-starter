@@ -3,6 +3,8 @@ export const en = {
 	"locales.en": "English",
 	"locales.id": "Bahasa Indonesia",
 
+	"common.success": "Success",
+
 	"errors.unauthorized": "Authentication required",
 	"errors.forbidden": "You do not have permission to perform this action",
 	"errors.notFound": "Not found",

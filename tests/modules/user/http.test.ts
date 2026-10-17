@@ -22,7 +22,8 @@ describe("module.user http", () => {
 			headers: { authorization: `Bearer ${member.token}` },
 		})
 		expect(me.response.status).toBe(200)
-		expect(me.body.email).toBe(member.user.email)
+		expect(me.body.code).toBe("OK")
+		expect(me.body.data.email).toBe(member.user.email)
 
 		const patched = await request("/api/users/me", {
 			method: "PATCH",
@@ -33,7 +34,7 @@ describe("module.user http", () => {
 			body: JSON.stringify({ name: "Member Updated" }),
 		})
 		expect(patched.response.status).toBe(200)
-		expect(patched.body.name).toBe("Member Updated")
+		expect(patched.body.data.name).toBe("Member Updated")
 
 		const listed = await request("/api/users", {
 			headers: { authorization: `Bearer ${member.token}` },
@@ -45,8 +46,8 @@ describe("module.user http", () => {
 			headers: { authorization: `Bearer ${member.token}` },
 		})
 		expect(access.response.status).toBe(200)
-		expect(access.body.role).toBe("user")
-		expect(access.body.permissions.user).toBeUndefined()
+		expect(access.body.data.role).toBe("user")
+		expect(access.body.data.permissions.user).toBeUndefined()
 	})
 
 	it("lets an admin list users, set roles, and keeps the last admin", async () => {
@@ -60,7 +61,11 @@ describe("module.user http", () => {
 			headers: { authorization: `Bearer ${admin.token}` },
 		})
 		expect(visible.response.status).toBe(200)
-		expect(visible.body.total).toBeGreaterThan(0)
+		expect(visible.body.code).toBe("OK")
+		expect(visible.body.data.meta.total).toBeGreaterThan(0)
+		expect(visible.body.data.meta.page).toBe(1)
+		expect(visible.body.data.meta.pageSize).toBe(20)
+		expect(Array.isArray(visible.body.data.items)).toBe(true)
 
 		const changed = await request(`/api/users/${other.user.id}/role`, {
 			method: "PATCH",
@@ -71,7 +76,7 @@ describe("module.user http", () => {
 			body: JSON.stringify({ role: "user" }),
 		})
 		expect(changed.response.status).toBe(200)
-		expect(changed.body.role).toBe("user")
+		expect(changed.body.data.role).toBe("user")
 
 		const hidden = await request("/api/users", {
 			headers: { authorization: `Bearer ${other.token}` },
@@ -108,10 +113,10 @@ describe("module.user http", () => {
 			body: form,
 		})
 		expect(uploaded.response.status).toBe(200)
-		expect(uploaded.body.image).toContain("/uploads/")
-		expect(uploaded.body.image).toContain(`avatars/${member.user.id}`)
+		expect(uploaded.body.data.image).toContain("/uploads/")
+		expect(uploaded.body.data.image).toContain(`avatars/${member.user.id}`)
 
-		const imagePath = new URL(uploaded.body.image as string).pathname
+		const imagePath = new URL(uploaded.body.data.image as string).pathname
 		const served = await app.handle(new Request(`${origin}${imagePath}`))
 		expect(served.status).toBe(200)
 		expect(served.headers.get("content-type")).toContain("image/png")
@@ -135,8 +140,8 @@ describe("module.user http", () => {
 			}),
 		})
 		expect(created.response.status).toBe(200)
-		expect(created.body.email).toBe(`invited-${stamp}@example.com`)
-		expect(created.body.role).toBe("user")
+		expect(created.body.data.email).toBe(`invited-${stamp}@example.com`)
+		expect(created.body.data.role).toBe("user")
 
 		const asMember = await signUp("Nope", `nope-${stamp}@example.com`)
 		const forbidden = await request("/api/users", {

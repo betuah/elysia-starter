@@ -6,7 +6,7 @@ import { t } from "../../i18n"
 import type { Actor } from "../../lib/actor"
 import { failT } from "../../lib/error"
 import { assertOwnerOrPermission } from "../../lib/ownership"
-import { paginated } from "../../lib/response"
+import { ok, paginatedPage, toLimitOffset } from "../../lib/response"
 import { sanitizeText } from "../../lib/sanitize"
 import { extensionFromFilename } from "../../lib/storage/keys"
 import { getStorage } from "../../lib/storage"
@@ -19,7 +19,7 @@ const AVATAR_TYPES = new Set(["image/png", "image/jpeg", "image/jpg", "image/gif
  * Public user DTO — response “sanitize”: omit secrets (password/hash/token never included).
  * Not HTML escape; Elysia input `sanitize` + frontend rendering handle XSS.
  */
-export function toPublicUser(row: UserRecord): UserModel["profile"] {
+export function toPublicUser(row: UserRecord): UserModel["publicUser"] {
 	return {
 		id: row.id,
 		name: row.name,
@@ -32,19 +32,26 @@ export function toPublicUser(row: UserRecord): UserModel["profile"] {
 	}
 }
 
+function successMessage(locale: Locale) {
+	return t(locale, "common.success")
+}
+
 export abstract class UserService {
 	static async me(actor: Actor, locale: Locale = env.DEFAULT_LOCALE) {
 		return UserService.getById(actor, actor.id, locale)
 	}
 
-	static access(actor: Actor) {
+	static access(actor: Actor, locale: Locale = env.DEFAULT_LOCALE) {
 		const permissions = permissionsFor(actor.role)
-		return {
-			role: actor.role,
-			permissions: Object.fromEntries(
-				Object.entries(permissions).map(([resource, actions]) => [resource, [...actions]]),
-			),
-		}
+		return ok(
+			{
+				role: actor.role,
+				permissions: Object.fromEntries(
+					Object.entries(permissions).map(([resource, actions]) => [resource, [...actions]]),
+				),
+			},
+			{ message: successMessage(locale) },
+		)
 	}
 
 	static async getById(actor: Actor, id: string, locale: Locale = env.DEFAULT_LOCALE) {
@@ -57,7 +64,7 @@ export abstract class UserService {
 
 		const row = await userRepository.findById(id)
 		if (!row) failT(locale, 404, "NOT_FOUND", "errors.userNotFound")
-		return toPublicUser(row)
+		return ok(toPublicUser(row), { message: successMessage(locale) })
 	}
 
 	static async updateMe(actor: Actor, body: UserModel["updateMe"], locale: Locale = env.DEFAULT_LOCALE) {
@@ -75,7 +82,7 @@ export abstract class UserService {
 
 		const updated = await userRepository.update(actor.id, patch)
 		if (!updated) failT(locale, 404, "NOT_FOUND", "errors.userNotFound")
-		return toPublicUser(updated)
+		return ok(toPublicUser(updated), { message: successMessage(locale) })
 	}
 
 	/**
@@ -110,7 +117,7 @@ export abstract class UserService {
 			updatedAt: new Date(),
 		})
 		if (!updated) failT(locale, 404, "NOT_FOUND", "errors.userNotFound")
-		return toPublicUser(updated)
+		return ok(toPublicUser(updated), { message: successMessage(locale) })
 	}
 
 	static async list(actor: Actor, query: UserModel["listQuery"], locale: Locale = env.DEFAULT_LOCALE) {
@@ -118,11 +125,14 @@ export abstract class UserService {
 			failT(locale, 403, "FORBIDDEN", "errors.cannotListUsers")
 		}
 
-		const limit = query.limit ?? 20
-		const offset = query.offset ?? 0
+		const page = query.page ?? 1
+		const pageSize = query.pageSize ?? 20
+		const { limit, offset } = toLimitOffset({ page, pageSize })
 		const { items, total } = await userRepository.list({ limit, offset })
 
-		return paginated(items.map(toPublicUser), total, { limit, offset })
+		return paginatedPage(items.map(toPublicUser), total, { page, pageSize }, {
+			message: successMessage(locale),
+		})
 	}
 
 	static async createUser(
@@ -152,7 +162,7 @@ export abstract class UserService {
 
 		const row = await userRepository.findById(result.user.id)
 		if (!row) failT(locale, 404, "NOT_FOUND", "errors.userNotFound")
-		return toPublicUser(row)
+		return ok(toPublicUser(row), { message: successMessage(locale) })
 	}
 
 	static async setRole(
@@ -184,7 +194,7 @@ export abstract class UserService {
 
 		const updated = await userRepository.findById(id)
 		if (!updated) failT(locale, 404, "NOT_FOUND", "errors.userNotFound")
-		return toPublicUser(updated)
+		return ok(toPublicUser(updated), { message: successMessage(locale) })
 	}
 
 	static async ban(
@@ -213,7 +223,7 @@ export abstract class UserService {
 
 		const updated = await userRepository.findById(id)
 		if (!updated) failT(locale, 404, "NOT_FOUND", "errors.userNotFound")
-		return toPublicUser(updated)
+		return ok(toPublicUser(updated), { message: successMessage(locale) })
 	}
 
 	static async unban(
@@ -236,7 +246,7 @@ export abstract class UserService {
 
 		const updated = await userRepository.findById(id)
 		if (!updated) failT(locale, 404, "NOT_FOUND", "errors.userNotFound")
-		return toPublicUser(updated)
+		return ok(toPublicUser(updated), { message: successMessage(locale) })
 	}
 
 	static async remove(
@@ -265,7 +275,7 @@ export abstract class UserService {
 			headers,
 		})
 
-		return { id, deleted: true as const }
+		return ok({ id, deleted: true as const }, { message: successMessage(locale) })
 	}
 }
 

@@ -1,0 +1,14 @@
+---
+description: Better Auth mount, ACL macros, ownership
+globs: src/auth/**/*.ts,src/plugins/auth.ts,src/modules/user/**/*.ts
+alwaysApply: false
+---
+
+# Auth and ACL
+
+- Mount: `auth.handler` in `src/app.ts` — Better Auth owns `/api/auth/*` response shapes.
+- Permissions: edit `src/auth/permissions.ts` (`statement`, `ac.newRole`, `roleDefinitions`).
+- Route guards: `authPlugin` macros `auth: true` and `permission: { … }`.
+- Ownership: `assertOwnerOrPermission` from `src/lib/ownership.ts` in services (row-level), separate from role ACL.
+- Google / SSO: env-gated (`AUTH_GOOGLE_*`, `AUTH_SSO_*`); probe via `GET /api/auth/providers` (no secrets).
+- Do not put passwords in public DTOs; use `trusted: true` on password/URL input fields so sanitize preserves them.

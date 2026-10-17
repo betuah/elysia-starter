@@ -1,7 +1,8 @@
 import { t, type UnwrapSchema } from "elysia"
 
 import { roleNames } from "../../auth/permissions"
-import { pageQuery, paginatedSchema } from "../../models/pagination"
+import { pageQuery, paginatedDataSchema } from "../../models/pagination"
+import { successSchema } from "../../models/success"
 
 /**
  * String fields on **response** schemas use `trusted: true` so Elysia `sanitize`
@@ -19,14 +20,23 @@ const publicUser = t.Object({
 	createdAt: t.String({ format: "date-time", trusted: true }),
 })
 
+const accessData = t.Object({
+	role: t.String({ trusted: true }),
+	permissions: t.Record(t.String({ trusted: true }), t.Array(t.String({ trusted: true }))),
+})
+
+const deletedData = t.Object({
+	id: t.String({ trusted: true }),
+	deleted: t.Literal(true),
+})
+
 export const UserModel = {
-	profile: publicUser,
+	profile: successSchema(publicUser),
+	/** Unwrapped public user — used by `toPublicUser` return typing. */
+	publicUser,
 	listQuery: pageQuery,
-	list: paginatedSchema(publicUser),
-	access: t.Object({
-		role: t.String({ trusted: true }),
-		permissions: t.Record(t.String({ trusted: true }), t.Array(t.String({ trusted: true }))),
-	}),
+	list: successSchema(paginatedDataSchema(publicUser)),
+	access: successSchema(accessData),
 	updateMe: t.Object({
 		name: t.Optional(t.String({ minLength: 1, maxLength: 120 })),
 		/** URL — skip HTML escape so `&` in query strings is preserved. */
@@ -57,10 +67,7 @@ export const UserModel = {
 	idParams: t.Object({
 		id: t.String({ minLength: 1, trusted: true }),
 	}),
-	deleted: t.Object({
-		id: t.String({ trusted: true }),
-		deleted: t.Literal(true),
-	}),
+	deleted: successSchema(deletedData),
 } as const
 
 export type UserModel = {

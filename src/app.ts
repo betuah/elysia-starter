@@ -7,6 +7,8 @@ import { resolveClusterWorkers, shouldUseCluster } from "./config/cluster"
 import { shouldAttachCronToHttpApp } from "./config/cron"
 import { elysiaOptions } from "./config/server"
 import { env } from "./env"
+import { t } from "./i18n"
+import { ok } from "./lib/response"
 import { authProviders } from "./modules/auth-providers"
 import { health } from "./modules/health"
 import { i18nRoutes } from "./modules/i18n"
@@ -57,18 +59,22 @@ const base = new Elysia(elysiaOptions)
 	.use(storageStatic)
 	.get(
 		"/",
-		({ locale }) => ({
-			name: "Elysia Starter",
-			...(env.DOCS_ENABLED
-				? { docs: "/docs", authReference: "/api/auth/reference" }
-				: {}),
-			authProviders: "/api/auth/providers",
-			i18n: "/api/i18n/locales",
-			locales: env.SUPPORTED_LOCALES,
-			locale,
-			health: "/health",
-			appUrl: env.APP_URL,
-		}),
+		({ locale }) =>
+			ok(
+				{
+					name: "Elysia Starter",
+					...(env.DOCS_ENABLED
+						? { docs: "/docs", authReference: "/api/auth/reference" }
+						: {}),
+					authProviders: "/api/auth/providers",
+					i18n: "/api/i18n/locales",
+					locales: env.SUPPORTED_LOCALES,
+					locale,
+					health: "/health",
+					appUrl: env.APP_URL,
+				},
+				{ message: t(locale, "common.success") },
+			),
 		{
 			detail: {
 				tags: ["System"],

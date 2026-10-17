@@ -16,9 +16,16 @@ export const errorCodes = [
 
 export type ErrorCode = (typeof errorCodes)[number]
 
+export type FieldError = {
+	field: string
+	message: string
+}
+
 export type ApiError = {
 	code: ErrorCode
 	message: string
+	/** Present on schema validation failures (`code: VALIDATION` from the error plugin). */
+	errors?: FieldError[]
 }
 
 type ErrorStatus = 400 | 401 | 403 | 404 | 409 | 422 | 429 | 500

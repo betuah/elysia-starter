@@ -1,0 +1,20 @@
+---
+description: Use getStorage() shared adapter, not a files module
+globs: src/lib/storage/**/*.ts,src/plugins/storage-static.ts,src/modules/**/*.ts
+alwaysApply: false
+---
+
+# File storage
+
+- Import `getStorage()` from `src/lib/storage` — **not** a dedicated files feature module.
+- Primary path: multipart → API → `storage.put(...)` (works for `local` and `s3`).
+- Presign (`createPutPresignedUrl` / `createGetPresignedUrl`) is optional and **S3 only**; local returns `null`.
+- Avatar example: `UserService` → `getStorage().put` → persist `user.image` URL.
+- Local public reads: `GET /uploads/{key}` via `storage-static` plugin only.
+
+```ts
+// ✅ GOOD
+const { url } = await getStorage().put({ body: file, key: `avatars/${id}.png`, ... })
+
+// ❌ BAD — new src/modules/files HTTP CRUD for all uploads
+```

@@ -1,0 +1,15 @@
+---
+description: Core Elysia Starter architecture — modules, lib, secrets
+alwaysApply: true
+---
+
+# Architecture
+
+- **Stack:** Bun + Elysia + Better Auth + Drizzle (Postgres only) + PGlite tests.
+- **Feature modules** live in `src/modules/<feature>/` — see `modules.mdc`.
+- **Shared helpers** in `src/lib/` (response, error, ownership, sanitize, storage, email, actor). Domain-only helpers stay next to the module.
+- **`src/db/`** is infrastructure only (client, schema, migrate) — not domain repositories.
+- **Storage** is `getStorage()` from `src/lib/storage` — not a files feature module.
+- **Better Auth** mounts at `/api/auth/*` with its own response shape; do not wrap it in `ok()`.
+- **Secrets:** never commit `.env` or credentials; use `.env.example` as the template.
+- Prefer existing patterns in `src/modules/user/` when adding features. Details: `docs/`.

@@ -7,43 +7,49 @@ describe("module.health", () => {
 	it("serves health, index, and OpenAPI", async () => {
 		const health = await request("/health")
 		expect(health.response.status).toBe(200)
-		expect(health.body.status).toBe("ok")
+		expect(health.body.code).toBe("OK")
+		expect(health.body.data.status).toBe("ok")
 		expect(health.response.headers.get("x-request-id")).toBeTruthy()
 		expect(health.response.headers.get("x-content-type-options")).toBe("nosniff")
 
 		const index = await request("/")
-		expect(index.body.docs).toBe("/docs")
-		expect(index.body.authReference).toBe("/api/auth/reference")
-		expect(index.body.authProviders).toBe("/api/auth/providers")
-		expect(index.body.i18n).toBe("/api/i18n/locales")
-		expect(index.body.locales).toEqual(["en", "id"])
-		expect(index.body.locale).toBe("en")
-		expect(index.body.appUrl).toBeTruthy()
+		expect(index.body.code).toBe("OK")
+		expect(index.body.data.docs).toBe("/docs")
+		expect(index.body.data.authReference).toBe("/api/auth/reference")
+		expect(index.body.data.authProviders).toBe("/api/auth/providers")
+		expect(index.body.data.i18n).toBe("/api/i18n/locales")
+		expect(index.body.data.locales).toEqual(["en", "id"])
+		expect(index.body.data.locale).toBe("en")
+		expect(index.body.data.appUrl).toBeTruthy()
 		expect(index.response.headers.get("content-language")).toBe("en")
 
 		// Default env: all social providers off (no real IdP required).
 		const providers = await request("/api/auth/providers")
 		expect(providers.response.status).toBe(200)
 		expect(providers.body).toEqual({
-			emailPassword: true,
-			google: {
-				enabled: false,
-				redirectUri: "http://localhost:3000/api/auth/callback/google",
-				callbackUri: "http://localhost:3000/api/auth/callback/google",
-				oneTap: false,
-			},
-			sso: {
-				enabled: false,
-				providerId: "oidc",
-				name: "SSO",
-				domain: "localhost",
-				redirectUri: "http://localhost:3000/api/auth/sso/callback/oidc",
-				callbackUri: "http://localhost:3000/api/auth/sso/callback/oidc",
-				signInUri: "http://localhost:3000/api/auth/sign-in/sso",
-				signOutUri: "http://localhost:3000/api/auth/sign-out",
+			code: "OK",
+			message: "Success",
+			data: {
+				emailPassword: true,
+				google: {
+					enabled: false,
+					redirectUri: "http://localhost:3000/api/auth/callback/google",
+					callbackUri: "http://localhost:3000/api/auth/callback/google",
+					oneTap: false,
+				},
+				sso: {
+					enabled: false,
+					providerId: "oidc",
+					name: "SSO",
+					domain: "localhost",
+					redirectUri: "http://localhost:3000/api/auth/sso/callback/oidc",
+					callbackUri: "http://localhost:3000/api/auth/sso/callback/oidc",
+					signInUri: "http://localhost:3000/api/auth/sign-in/sso",
+					signOutUri: "http://localhost:3000/api/auth/sign-out",
+				},
 			},
 		})
-		expect(providers.body).not.toHaveProperty("oidc")
+		expect(providers.body.data).not.toHaveProperty("oidc")
 		expect(JSON.stringify(providers.body)).not.toMatch(/secret|CLIENT_/i)
 
 		const spec = await request("/docs/json")

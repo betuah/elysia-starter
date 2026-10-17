@@ -9,9 +9,11 @@ describe("module.i18n", () => {
 		})
 		expect(result.response.status).toBe(200)
 		expect(result.response.headers.get("content-language")).toBe("id")
-		expect(result.body.current).toBe("id")
-		expect(result.body.default).toBe("en")
-		expect(result.body.locales).toEqual(
+		expect(result.body.code).toBe("OK")
+		expect(result.body.message).toBe("Berhasil")
+		expect(result.body.data.current).toBe("id")
+		expect(result.body.data.default).toBe("en")
+		expect(result.body.data.locales).toEqual(
 			expect.arrayContaining([
 				expect.objectContaining({ code: "en" }),
 				expect.objectContaining({ code: "id" }),
@@ -24,7 +26,7 @@ describe("module.i18n", () => {
 			headers: { "accept-language": "en-US,en;q=0.9" },
 		})
 		expect(result.response.status).toBe(200)
-		expect(result.body.current).toBe("id")
+		expect(result.body.data.current).toBe("id")
 		expect(result.response.headers.get("content-language")).toBe("id")
 	})
 

@@ -1,0 +1,21 @@
+---
+description: Drizzle schema by domain; repos in modules
+globs: src/db/**/*.ts
+alwaysApply: false
+---
+
+# Database schema
+
+- **Postgres only** (`DATABASE_URL`). Tests use PGlite (`NODE_ENV=test`).
+- **One domain per file** under `src/db/schema/` (e.g. `auth.ts`). Do not dump unrelated tables into one mega-schema.
+- **Column helpers** in `columns.ts` (e.g. `timestampColumn`).
+- **Relations** in `relations.ts`, separate from table definitions.
+- Re-export from `schema/index.ts`; keep `authSchema` for Better Auth adapter.
+- **Repositories** belong in `src/modules/<feature>/repository.ts`, not under `src/db/`.
+
+```ts
+// ✅ GOOD — new domain file
+// src/db/schema/notes.ts → export from index.ts; relations in relations.ts
+
+// ❌ BAD — add note tables into auth.ts or invent src/db/repository/
+```

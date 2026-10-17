@@ -1,0 +1,29 @@
+---
+description: Feature module layout (index, model, service, repository)
+globs: src/modules/**/*.ts
+alwaysApply: false
+---
+
+# Feature modules
+
+Layout per feature under `src/modules/<feature>/`:
+
+| File | Role |
+| --- | --- |
+| `index.ts` | Routes: prefix, tags, `.use(authPlugin|i18nPlugin|sharedModels)`, wire to service |
+| `model.ts` | Elysia `t` schemas; wrap payloads with `successSchema` / `paginatedDataSchema` |
+| `service.ts` | Business logic, ACL/ownership, return `ok` / `okList` / throw via `failT` |
+| `repository.ts` | Optional Drizzle access for this domain only |
+
+```ts
+// ✅ GOOD — register in app.ts, tests in tests/modules/<feature>/
+export const notes = new Elysia({ prefix: "/api/notes" })
+  .use(authPlugin)
+  .get("/", ({ user, locale }) => NoteService.list(user, locale), { auth: true })
+
+// ❌ BAD — domain queries in src/db/repository or a mega "files" module for storage
+```
+
+- Use macros: `auth: true`, `permission: { resource: ["action"] }`.
+- Shared helpers → `src/lib/`; feature-only helpers → same module folder.
+- Response strings in models: `trusted: true` so sanitize does not double-escape JSON.
