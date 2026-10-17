@@ -12,6 +12,8 @@ alwaysApply: true
 - **Never** add `Co-authored-by:` (or similar) trailers for Cursor, Cursor agent, Composer, or any AI/tool.
 - **Never** update git config (`user.name`, `user.email`, aliases, etc.).
 - Do not amend, `--no-verify`, force-push, or push unless the user explicitly asks.
+- If Cursor auto-injects `Co-authored-by`, strip it (e.g. `git commit-tree` / non-interactive rewrite) before finishing — never leave AI trailers.
+- History rewrite is local-only until the user clearly OK’s a force push to the remote.
 - Never commit `.env` or secrets; use `.env.example` as the template.
 
 ```text
