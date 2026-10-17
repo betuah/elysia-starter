@@ -1,0 +1,50 @@
+# Local production-like stack: API + Postgres.
+# Usage:
+#   docker compose up --build
+# API: http://localhost:3000
+
+services:
+  db:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+      POSTGRES_DB: app
+    ports:
+      - "5432:5432"
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres -d app"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  api:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    ports:
+      - "3000:3000"
+    environment:
+      NODE_ENV: production
+      PORT: "3000"
+      HOST: 0.0.0.0
+      DATABASE_URL: postgresql://postgres:postgres@db:5432/app
+      BETTER_AUTH_SECRET: ${BETTER_AUTH_SECRET:-replace-with-a-secret-at-least-32-characters}
+      BETTER_AUTH_URL: ${BETTER_AUTH_URL:-http://localhost:3000}
+      APP_URL: ${APP_URL:-http://localhost:3000}
+      TRUSTED_ORIGINS: ${TRUSTED_ORIGINS:-http://localhost:3000}
+      CLUSTER_WORKERS: ${CLUSTER_WORKERS:-0}
+      CRON_ENABLED: ${CRON_ENABLED:-false}
+      RUN_MIGRATIONS: "true"
+      ADMIN_EMAIL: ${ADMIN_EMAIL:-admin@example.com}
+      ADMIN_PASSWORD: ${ADMIN_PASSWORD:-ChangeMe123!}
+      USER_EMAIL: ${USER_EMAIL:-user@example.com}
+      USER_PASSWORD: ${USER_PASSWORD:-ChangeMe123!}
+    depends_on:
+      db:
+        condition: service_healthy
+
+volumes:
+  pgdata:
