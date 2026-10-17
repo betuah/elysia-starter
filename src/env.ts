@@ -1,3 +1,4 @@
+import { resolveDocsEnabled } from "./config/docs"
 import { resolveDatabaseConnection } from "./db/config"
 
 export type NodeEnv = "development" | "test" | "production"
@@ -239,9 +240,19 @@ export const env = {
 	USER_NAME: process.env.USER_NAME || "Demo User",
 	USER_EMAIL: process.env.USER_EMAIL || "user@example.com",
 	USER_PASSWORD: process.env.USER_PASSWORD || "ChangeMe123!",
-	/** Resend API key — when unset, emails are mocked to the console. */
-	RESEND_API_KEY: optional("RESEND_API_KEY"),
-	EMAIL_FROM: process.env.EMAIL_FROM || "Elysia Starter <onboarding@resend.dev>",
+	/**
+	 * SMTP — when `SMTP_HOST` is unset, emails are mocked to the console.
+	 * Set `SMTP_SECURE=true` for port 465 (implicit TLS).
+	 * Set `SMTP_REJECT_UNAUTHORIZED=false` to allow self-signed certs (dev only).
+	 */
+	SMTP_HOST: optional("SMTP_HOST"),
+	SMTP_PORT: integer("SMTP_PORT", 587, { min: 1, max: 65535 }),
+	SMTP_SECURE: flag("SMTP_SECURE"),
+	SMTP_USER: optional("SMTP_USER"),
+	SMTP_PASS: optional("SMTP_PASS"),
+	/** Unset → default Node TLS verification; `false` → allow self-signed (dev). */
+	SMTP_REJECT_UNAUTHORIZED: optionalBool("SMTP_REJECT_UNAUTHORIZED"),
+	EMAIL_FROM: process.env.EMAIL_FROM || "Elysia Starter <noreply@localhost>",
 	/** App base URL used in email links (password reset, verification). */
 	APP_URL:
 		process.env.APP_URL ||
@@ -359,4 +370,26 @@ export const env = {
 	 * `getPublicUrl` when no CDN base is set. Default 3600 (1 hour).
 	 */
 	S3_PRESIGN_EXPIRES: integer("S3_PRESIGN_EXPIRES", 3600, { min: 1, max: 604_800 }),
+	/**
+	 * Mount Scalar `/docs` + Better Auth `/api/auth/reference`.
+	 * Unset → enabled when `NODE_ENV` is not `production`; set `true`/`false` to override.
+	 */
+	DOCS_ENABLED: resolveDocsEnabled({
+		docsEnabled: optionalBool("DOCS_ENABLED"),
+		nodeEnv: environment,
+	}),
+	/**
+	 * Optional HTTP Basic Auth for docs surfaces (`/docs`, `/docs/json`,
+	 * `/api/auth/reference`, `/api/auth/open-api/*`). Both must be set together.
+	 */
+	DOCS_BASIC_AUTH_USER: optional("DOCS_BASIC_AUTH_USER"),
+	DOCS_BASIC_AUTH_PASSWORD: optional("DOCS_BASIC_AUTH_PASSWORD"),
 } as const
+
+const docsUser = env.DOCS_BASIC_AUTH_USER
+const docsPassword = env.DOCS_BASIC_AUTH_PASSWORD
+if (Boolean(docsUser) !== Boolean(docsPassword)) {
+	throw new Error(
+		"DOCS_BASIC_AUTH_USER and DOCS_BASIC_AUTH_PASSWORD must both be set, or both omitted.",
+	)
+}

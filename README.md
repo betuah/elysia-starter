@@ -8,7 +8,7 @@ Starter API Bun + Elysia dengan Better Auth, ACL role, ownership (“data milik 
 - **ACL** — role `user` | `admin` di `src/auth/permissions.ts`
 - **Ownership** — helper `assertOwnerOrPermission` agar user biasa hanya mengakses datanya sendiri
 - **Security** — CORS, security headers, rate limit, Elysia `sanitize` (input), public DTO responses, cookie aman di production
-- **API docs** — Scalar `/docs`, referensi auth `/api/auth/reference`
+- **API docs** — Scalar `/docs`, referensi auth `/api/auth/reference` (bisa di-`DOCS_ENABLED` + optional Basic Auth)
 - **Database** — **Postgres only** (Drizzle + `DATABASE_URL`); tests memakai PGlite in-memory
 - **Cluster** — pola resmi Elysia ([deploy.html](https://elysiajs.com/patterns/deploy.html)): primary fork → worker `import('./server')`
 - **Cron** — `@elysia/cron`, aman di cluster (jalan di primary saja)
@@ -35,6 +35,29 @@ bun run dev          # API http://localhost:3000
 - Auth reference: http://localhost:3000/api/auth/reference
 - Auth providers: http://localhost:3000/api/auth/providers
 
+### API docs (enable / protect)
+
+Satu flag mengontrol **kedua** permukaan docs:
+
+| URL | Sumber |
+| --- | --- |
+| `/docs`, `/docs/json` | Elysia OpenAPI / Scalar |
+| `/api/auth/reference`, `/api/auth/open-api/generate-schema` | Better Auth openAPI plugin |
+
+| Env | Perilaku |
+| --- | --- |
+| `DOCS_ENABLED` unset | **On** jika `NODE_ENV` ≠ `production`; **off** di production |
+| `DOCS_ENABLED=true` / `false` | Override eksplisit |
+| `DOCS_BASIC_AUTH_USER` + `DOCS_BASIC_AUTH_PASSWORD` | Optional HTTP Basic Auth (keduanya wajib jika salah satu diisi). Jika kosong, docs publik selama enabled. |
+
+Contoh production dengan docs terlindungi:
+
+```bash
+DOCS_ENABLED=true
+DOCS_BASIC_AUTH_USER=docs
+DOCS_BASIC_AUTH_PASSWORD=replace-me
+```
+
 ### Akun seed
 
 | Role | Email | Password |
@@ -52,6 +75,7 @@ bun run start        # production process
 bun test             # tests per modul
 bun run typecheck
 bun run seed
+bun run email        # React Email preview (src/emails/) — SMTP masih dipakai untuk kirim
 bun run db:generate / db:migrate / db:push / db:studio
 ```
 
@@ -136,8 +160,8 @@ assertOwnerOrPermission(actor, row.authorId, { note: ["moderate"] })
 | --- | --- | --- |
 | Login / signup email+password | ✅ | — |
 | Session cookie + bearer (`set-auth-token`) | ✅ | `TRUSTED_ORIGINS` harus include origin client |
-| Forgot / reset password | ✅ | Email via Resend atau console mock |
-| Email verification | ✅ | `sendOnSignUp`; `REQUIRE_EMAIL_VERIFICATION=true` opsional |
+| Forgot / reset password | ✅ | React Email template → SMTP (`EMAIL_FROM` + `SMTP_*`) atau console mock |
+| Email verification | ✅ | React Email; `sendOnSignUp`; `REQUIRE_EMAIL_VERIFICATION=true` opsional |
 | Invite / create user | ✅ | `POST /api/users` (admin) → Better Auth `createUser` |
 | Promote / demote admin | ✅ | `PATCH /api/users/:id/role` |
 | Ban / unban | ✅ | `POST /api/users/:id/ban|unban` (+ `/api/auth/admin/*`) |
@@ -148,7 +172,7 @@ assertOwnerOrPermission(actor, row.authorId, { note: ["moderate"] })
 | Google One Tap | ⚙️ | + `AUTH_GOOGLE_ONE_TAP_ENABLED=true` (FedCM) |
 | Enterprise SSO | ⚙️ | `AUTH_SSO_ENABLED=true` + client + issuer/discovery ([Better Auth SSO plugin](https://better-auth.com/docs/plugins/sso)) |
 | Provider probe | ✅ | `GET /api/auth/providers` (no secrets) + absolute Google/SSO URIs for registration |
-| Email kirim nyata | ⚙️ | `RESEND_API_KEY` + `EMAIL_FROM`; tanpa itu → `console.log` mock |
+| Email kirim nyata | ⚙️ | Templates React di `src/emails/` (preview: `bun email`); transport SMTP via nodemailer (`SMTP_HOST` + `SMTP_PORT` / `SMTP_USER` / `SMTP_PASS` / `EMAIL_FROM`); tanpa `SMTP_HOST` → `console.log` mock |
 
 ### Auth providers (env toggles)
 
@@ -446,7 +470,8 @@ src/
 │   ├── schema/              # Drizzle Postgres tables (pg-core)
 │   ├── providers/           # postgres.js + pglite (tests)
 │   └── migrate.ts
-├── lib/                     # actor, error, email, ownership, sanitize, response, storage/
+├── emails/                  # React Email templates (bun email preview)
+├── lib/                     # actor, error, email (SMTP + render), ownership, sanitize, response, storage/
 │   └── storage/             # StorageAdapter + local / Bun S3 drivers
 ├── i18n/                    # catalogs + t() + negotiateLocale
 ├── models/                  # common.Error, pagination schemas
@@ -465,7 +490,7 @@ tests/modules/<feature>/
 
 ## Configuration (ringkas)
 
-Lihat `.env.example`. Penting: `BETTER_AUTH_*`, `TRUSTED_ORIGINS`, `DATABASE_URL` (Postgres), `ADMIN_*` / `USER_*`, `AUTH_GOOGLE_*` / `GOOGLE_*`, `AUTH_SSO_*`, `DEFAULT_LOCALE` / `SUPPORTED_LOCALES`, `RESEND_API_KEY`, `CRON_ENABLED`, `CLUSTER_WORKERS`, `APP_URL`, `STORAGE_DRIVER` / `S3_*`.
+Lihat `.env.example`. Penting: `BETTER_AUTH_*`, `TRUSTED_ORIGINS`, `DATABASE_URL` (Postgres), `ADMIN_*` / `USER_*`, `AUTH_GOOGLE_*` / `GOOGLE_*`, `AUTH_SSO_*`, `DEFAULT_LOCALE` / `SUPPORTED_LOCALES`, `SMTP_*` / `EMAIL_FROM`, `CRON_ENABLED`, `CLUSTER_WORKERS`, `APP_URL`, `STORAGE_DRIVER` / `S3_*`, `DOCS_ENABLED` / `DOCS_BASIC_AUTH_*`.
 
 ## Menambah modul
 

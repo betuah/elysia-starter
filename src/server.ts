@@ -7,5 +7,9 @@ app.listen({ port: env.PORT, hostname: env.HOST })
 
 const pid = process.pid
 console.log(`Elysia starter is running at http://${hostname}:${env.PORT} (pid ${pid})`)
-console.log(`API docs: http://${hostname}:${env.PORT}/docs`)
-console.log(`Auth reference: http://${hostname}:${env.PORT}/api/auth/reference`)
+if (env.DOCS_ENABLED) {
+	console.log(`API docs: http://${hostname}:${env.PORT}/docs`)
+	console.log(`Auth reference: http://${hostname}:${env.PORT}/api/auth/reference`)
+} else {
+	console.log("API docs: disabled (DOCS_ENABLED=false)")
+}

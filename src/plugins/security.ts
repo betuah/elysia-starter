@@ -1,5 +1,10 @@
 import { Elysia, status } from "elysia"
 
+import {
+	authorizeDocsBasicAuth,
+	docsPathRequiresAuth,
+	isDocsBasicAuthConfigured,
+} from "../config/docs"
 import { env } from "../env"
 import { createRateLimiter } from "./rate-limit"
 
@@ -9,6 +14,9 @@ const limiter = createRateLimiter({
 })
 
 const skipped = [/^\/health$/, /^\/docs(?:\/|$)/, /^\/api\/auth\/reference(?:\/|$)/]
+const docsBasicAuthOn =
+	env.DOCS_ENABLED &&
+	isDocsBasicAuthConfigured(env.DOCS_BASIC_AUTH_USER, env.DOCS_BASIC_AUTH_PASSWORD)
 
 function clientKey(request: Request) {
 	if (env.TRUST_PROXY) {
@@ -21,6 +29,16 @@ function clientKey(request: Request) {
 	return request.headers.get("x-test-ip") ?? "local"
 }
 
+function unauthorizedDocs() {
+	return new Response("Unauthorized", {
+		status: 401,
+		headers: {
+			"WWW-Authenticate": 'Basic realm="API Docs"',
+			"Cache-Control": "no-store",
+		},
+	})
+}
+
 export const security = new Elysia({ name: "security" }).onRequest(({ request, set }) => {
 		const requestId = request.headers.get("x-request-id") ?? crypto.randomUUID()
 		set.headers["x-request-id"] = requestId
@@ -31,6 +49,19 @@ export const security = new Elysia({ name: "security" }).onRequest(({ request, s
 		set.headers["x-dns-prefetch-control"] = "off"
 
 		const path = new URL(request.url).pathname
+
+		if (
+			docsBasicAuthOn &&
+			docsPathRequiresAuth(path) &&
+			!authorizeDocsBasicAuth(
+				request.headers.get("authorization"),
+				env.DOCS_BASIC_AUTH_USER!,
+				env.DOCS_BASIC_AUTH_PASSWORD!,
+			)
+		) {
+			return unauthorizedDocs()
+		}
+
 		if (skipped.some((pattern) => pattern.test(path))) return
 
 		const result = limiter.check(clientKey(request))

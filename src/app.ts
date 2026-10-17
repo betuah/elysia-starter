@@ -59,8 +59,9 @@ const base = new Elysia(elysiaOptions)
 		"/",
 		({ locale }) => ({
 			name: "Elysia Starter",
-			docs: "/docs",
-			authReference: "/api/auth/reference",
+			...(env.DOCS_ENABLED
+				? { docs: "/docs", authReference: "/api/auth/reference" }
+				: {}),
 			authProviders: "/api/auth/providers",
 			i18n: "/api/i18n/locales",
 			locales: env.SUPPORTED_LOCALES,
@@ -76,6 +77,7 @@ const base = new Elysia(elysiaOptions)
 		},
 	)
 	// OpenAPI after routes so `/docs/json` always snapshots the full tree (incl. Auth).
+	// No-op plugin when `DOCS_ENABLED=false`.
 	.use(docs)
 
 export const app = attachCron ? base.use(createCronPlugin()) : base

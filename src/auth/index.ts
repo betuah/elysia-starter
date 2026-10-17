@@ -4,10 +4,13 @@ import { admin } from "better-auth/plugins/admin"
 import { bearer } from "better-auth/plugins/bearer"
 import { openAPI } from "better-auth/plugins/open-api"
 import { sso } from "@better-auth/sso"
+import * as React from "react"
 
 import { createAuthDatabaseAdapter } from "../db/auth-adapter"
+import EmailVerificationEmail from "../emails/email-verification"
+import PasswordResetEmail from "../emails/password-reset"
 import { env } from "../env"
-import { sendEmail } from "../lib/email"
+import { renderEmail, sendEmail } from "../lib/email"
 import { ac, roleDefinitions } from "./permissions"
 import {
 	buildSsoDefaultConfig,
@@ -83,11 +86,17 @@ export const auth = betterAuth({
 		autoSignIn: true,
 		requireEmailVerification: env.REQUIRE_EMAIL_VERIFICATION,
 		sendResetPassword: async ({ user, url }) => {
+			const html = await renderEmail(
+				React.createElement(PasswordResetEmail, {
+					name: user.name,
+					url,
+				}),
+			)
 			await sendEmail({
 				to: user.email,
 				subject: "Reset your password",
-				html: `<p>Hi ${user.name},</p><p><a href="${url}">Reset your password</a></p><p>If you did not request this, ignore this email.</p>`,
-				text: `Reset your password: ${url}`,
+				html,
+				text: `Hi ${user.name},\n\nReset your password: ${url}\n\nIf you did not request this, ignore this email.`,
 			})
 		},
 	},
@@ -95,11 +104,17 @@ export const auth = betterAuth({
 		sendOnSignUp: true,
 		autoSignInAfterVerification: true,
 		sendVerificationEmail: async ({ user, url }) => {
+			const html = await renderEmail(
+				React.createElement(EmailVerificationEmail, {
+					name: user.name,
+					url,
+				}),
+			)
 			await sendEmail({
 				to: user.email,
 				subject: "Verify your email",
-				html: `<p>Hi ${user.name},</p><p><a href="${url}">Verify your email</a></p>`,
-				text: `Verify your email: ${url}`,
+				html,
+				text: `Hi ${user.name},\n\nVerify your email: ${url}`,
 			})
 		},
 	},
@@ -122,7 +137,8 @@ export const auth = betterAuth({
 	},
 	plugins: [
 		bearer(),
-		openAPI({ theme: "deepSpace" }),
+		// Same `DOCS_ENABLED` gate as Scalar `/docs` — omit plugin so `/api/auth/reference` 404s.
+		...(env.DOCS_ENABLED ? [openAPI({ theme: "deepSpace" })] : []),
 		admin({
 			ac,
 			roles: roleDefinitions,
