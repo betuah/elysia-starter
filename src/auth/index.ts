@@ -90,7 +90,7 @@ const trustedOrigins = (() => {
 })()
 
 export const auth = betterAuth({
-	appName: "Elysia Starter",
+	appName: env.APP_NAME,
 	baseURL: env.BETTER_AUTH_URL,
 	secret: env.BETTER_AUTH_SECRET,
 	trustedOrigins,

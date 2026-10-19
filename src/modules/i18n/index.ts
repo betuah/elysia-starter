@@ -39,7 +39,7 @@ export const i18nRoutes = new Elysia({
 		{
 			response: successSchema(localesData),
 			detail: {
-				summary: "Available locales and current negotiation result",
+				summary: "GET Locales available",
 			},
 		},
 	)

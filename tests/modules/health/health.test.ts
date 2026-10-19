@@ -1,6 +1,7 @@
 import { describe, expect, it } from "bun:test"
 
 import { app } from "../../../src/app"
+import { env } from "../../../src/env"
 import { origin, request } from "../../helpers/http"
 
 describe("module.health", () => {
@@ -14,6 +15,7 @@ describe("module.health", () => {
 
 		const index = await request("/")
 		expect(index.body.code).toBe("OK")
+		expect(index.body.data.name).toBe(env.APP_NAME)
 		expect(index.body.data.docs).toBe("/docs")
 		expect(index.body.data.authReference).toBe("/api/auth/reference")
 		expect(index.body.data.authProviders).toBe("/api/auth/providers")
@@ -60,6 +62,7 @@ describe("module.health", () => {
 
 		const spec = await request("/docs/json")
 		expect(spec.response.status).toBe(200)
+		expect(spec.body.info?.title).toBe(env.APP_NAME)
 		expect(spec.body.paths["/api/users/me"]).toBeTruthy()
 		const providersOp = spec.body.paths["/api/auth/providers"]?.get
 		expect(providersOp).toBeTruthy()
@@ -67,6 +70,13 @@ describe("module.health", () => {
 		expect(providersOp.tags).toContain("Auth")
 		expect(providersOp.operationId).toBe("getApiAuthProviders")
 		expect(spec.body.tags?.some((tag: { name: string }) => tag.name === "Auth")).toBe(true)
+		expect(spec.body.tags?.some((tag: { name: string }) => tag.name === "System")).toBe(false)
+		expect(spec.body.paths["/"]).toBeUndefined()
+		expect(
+			Object.keys(spec.body.paths as Record<string, unknown>).some((p) =>
+				p.startsWith("/uploads"),
+			),
+		).toBe(false)
 		expect(spec.body.paths["/api/posts"]).toBeUndefined()
 		expect(spec.body.components.securitySchemes.bearerAuth.scheme).toBe("bearer")
 

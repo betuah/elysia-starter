@@ -276,10 +276,15 @@ const database = resolveDatabaseConnection(process.env as {
 	USE_PGLITE?: string
 })
 
+/** Display name for API index, OpenAPI, Better Auth, emails, startup logs. */
+const appName = process.env.APP_NAME?.trim() || "Elysia Starter"
+
 export const env = {
 	NODE_ENV: environment,
 	PORT: port,
 	HOST: process.env.HOST || "0.0.0.0",
+	/** Product / service display name (API index, OpenAPI title, Better Auth, email From). */
+	APP_NAME: appName,
 	/** Postgres connection string (ignored when USE_PGLITE). */
 	DATABASE_URL: database.url,
 	/**
@@ -337,7 +342,7 @@ export const env = {
 	SMTP_PASS: optional("SMTP_PASS"),
 	/** Unset → default Node TLS verification; `false` → allow self-signed (dev). */
 	SMTP_REJECT_UNAUTHORIZED: optionalBool("SMTP_REJECT_UNAUTHORIZED"),
-	EMAIL_FROM: process.env.EMAIL_FROM || "Elysia Starter <noreply@localhost>",
+	EMAIL_FROM: process.env.EMAIL_FROM || `${appName} <noreply@localhost>`,
 	/** App base URL used in email links (password reset, verification). */
 	APP_URL:
 		process.env.APP_URL ||

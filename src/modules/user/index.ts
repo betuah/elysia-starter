@@ -38,22 +38,30 @@ export const users = new Elysia({
 		"user.IdParams": UserModel.idParams,
 		"user.Deleted": UserModel.deleted,
 	})
+	// GET
 	.get("/me", ({ user, locale }) => UserService.me(user, locale), {
 		auth: true,
 		response: { 200: "user.Profile", 404: "common.Error", ...guarded },
-		detail: { summary: "Current user profile" },
+		detail: { summary: "GET Current user profile" },
 	})
-	.patch("/me", ({ user, body, locale }) => UserService.updateMe(user, body, locale), {
+	.get("/me/access", ({ user, locale }) => UserService.access(user, locale), {
 		auth: true,
-		body: "user.UpdateMe",
-		response: {
-			200: "user.Profile",
-			404: "common.Error",
-			422: "common.Error",
-			...guarded,
-		},
-		detail: { summary: "Update own profile (name, image URL)" },
+		response: { 200: "user.Access", ...guarded },
+		detail: { summary: "GET Current permission" },
 	})
+	.get("", ({ query, user, locale }) => UserService.list(user, query, locale), {
+		permission: { user: ["list"] },
+		query: "user.ListQuery",
+		response: { 200: "user.List", ...guarded },
+		detail: { summary: "GET List all users (Admin)" },
+	})
+	.get("/:id", ({ params, user, locale }) => UserService.getById(user, params.id, locale), {
+		auth: true,
+		params: "user.IdParams",
+		response: { 200: "user.Profile", 404: "common.Error", ...guarded },
+		detail: { summary: "GET User by id" },
+	})
+	// POST
 	.post(
 		"/me/avatar",
 		({ user, body, locale }) => UserService.updateAvatar(user, body.file, locale),
@@ -68,7 +76,7 @@ export const users = new Elysia({
 				...guarded,
 			},
 			detail: {
-				summary: "Upload own avatar",
+				summary: "Update Photo Profile (Avatar)",
 				description:
 					"Server-mediated upload (primary path). Multipart field `file` " +
 					"(png/jpeg/gif/webp, max 2 MiB) → `getStorage().put()` → local disk or S3 " +
@@ -76,17 +84,6 @@ export const users = new Elysia({
 			},
 		},
 	)
-	.get("/me/access", ({ user, locale }) => UserService.access(user, locale), {
-		auth: true,
-		response: { 200: "user.Access", ...guarded },
-		detail: { summary: "Permissions granted to the current role" },
-	})
-	.get("", ({ query, user, locale }) => UserService.list(user, query, locale), {
-		permission: { user: ["list"] },
-		query: "user.ListQuery",
-		response: { 200: "user.List", ...guarded },
-		detail: { summary: "List users (admin)" },
-	})
 	.post(
 		"",
 		({ body, user, request, locale }) => UserService.createUser(user, body, request.headers, locale),
@@ -100,28 +97,10 @@ export const users = new Elysia({
 				...guarded,
 			},
 			detail: {
-				summary: "Invite / create a user (admin)",
+				summary: "Create or Invite new User (Admin)",
 				description:
 					"Uses Better Auth admin createUser. No invite email is sent unless you wire one; share credentials out of band or extend with sendEmail.",
 			},
-		},
-	)
-	.patch(
-		"/:id/role",
-		({ params, body, user, request, locale }) =>
-			UserService.setRole(user, params.id, body.role, request.headers, locale),
-		{
-			permission: { user: ["set-role"] },
-			params: "user.IdParams",
-			body: "user.SetRole",
-			response: {
-				200: "user.Profile",
-				404: "common.Error",
-				409: "common.Error",
-				422: "common.Error",
-				...guarded,
-			},
-			detail: { summary: "Change a user's role (promote/demote admin)" },
 		},
 	)
 	.post(
@@ -138,7 +117,7 @@ export const users = new Elysia({
 				409: "common.Error",
 				...guarded,
 			},
-			detail: { summary: "Ban a user (admin)" },
+			detail: { summary: "Ban a user (Admin)" },
 		},
 	)
 	.post(
@@ -149,9 +128,40 @@ export const users = new Elysia({
 			permission: { user: ["ban"] },
 			params: "user.IdParams",
 			response: { 200: "user.Profile", 404: "common.Error", ...guarded },
-			detail: { summary: "Unban a user (admin)" },
+			detail: { summary: "Unban a user (Admin)" },
 		},
 	)
+	// PATCH
+	.patch("/me", ({ user, body, locale }) => UserService.updateMe(user, body, locale), {
+		auth: true,
+		body: "user.UpdateMe",
+		response: {
+			200: "user.Profile",
+			404: "common.Error",
+			422: "common.Error",
+			...guarded,
+		},
+		detail: { summary: "Update Profile" },
+	})
+	.patch(
+		"/:id/role",
+		({ params, body, user, request, locale }) =>
+			UserService.setRole(user, params.id, body.role, request.headers, locale),
+		{
+			permission: { user: ["set-role"] },
+			params: "user.IdParams",
+			body: "user.SetRole",
+			response: {
+				200: "user.Profile",
+				404: "common.Error",
+				409: "common.Error",
+				422: "common.Error",
+				...guarded,
+			},
+			detail: { summary: "Update or Change a User Role" },
+		},
+	)
+	// DELETE
 	.delete(
 		"/:id",
 		({ params, user, request, locale }) =>
@@ -165,12 +175,6 @@ export const users = new Elysia({
 				409: "common.Error",
 				...guarded,
 			},
-			detail: { summary: "Delete a user (admin)" },
+			detail: { summary: "Delete a user (Admin)" },
 		},
 	)
-	.get("/:id", ({ params, user, locale }) => UserService.getById(user, params.id, locale), {
-		auth: true,
-		params: "user.IdParams",
-		response: { 200: "user.Profile", 404: "common.Error", ...guarded },
-		detail: { summary: "Get a user by id (own profile or admin)" },
-	})

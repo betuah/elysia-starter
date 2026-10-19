@@ -17,12 +17,6 @@ import { i18nPlugin } from "./i18n"
 export const storageStatic = new Elysia({
 	name: "plugin.storage-static",
 	prefix: "/uploads",
-	tags: ["System"],
-	detail: {
-		description:
-			"Local storage public fetch. Object keys match `getStorage().put()` / `getPublicUrl()`. " +
-			"Not used when objects are served from S3/CDN (`STORAGE_DRIVER=s3`).",
-	},
 })
 	.use(sharedModels)
 	.use(i18nPlugin)
@@ -34,11 +28,8 @@ export const storageStatic = new Elysia({
 				400: "common.Error",
 				404: "common.Error",
 			},
-			detail: {
-				summary: "Serve a local stored object by key",
-				description:
-					"Path after `/uploads/` is the storage key. Used by local `getPublicUrl` targets.",
-			},
+			// Runtime serve-only; keep out of Scalar /docs (avatars still use GET /uploads/{key}).
+			detail: { hide: true },
 		},
 	)
 

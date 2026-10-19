@@ -72,7 +72,7 @@ const base = new Elysia(elysiaOptions)
 		({ locale }) =>
 			ok(
 				{
-					name: "Elysia Starter",
+					name: env.APP_NAME,
 					...(env.DOCS_ENABLED
 						? { docs: "/docs", authReference: "/api/auth/reference" }
 						: {}),
@@ -86,10 +86,8 @@ const base = new Elysia(elysiaOptions)
 				{ message: t(locale, "common.success") },
 			),
 		{
-			detail: {
-				tags: ["System"],
-				summary: "Service index",
-			},
+			// Ops discovery at runtime; omit from Scalar /docs.
+			detail: { hide: true },
 		},
 	)
 	// OpenAPI after routes so `/docs/json` always snapshots the full tree (incl. Auth).

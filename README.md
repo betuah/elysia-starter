@@ -82,7 +82,7 @@ bun run db:generate / db:migrate / db:push / db:studio
 
 ### Configuration
 
-See `.env.example`. Important: `BETTER_AUTH_*`, `TRUSTED_ORIGINS`, `DATABASE_URL` (Postgres), `ADMIN_*` / `USER_*`, `AUTH_GOOGLE_*` / `GOOGLE_*`, `AUTH_SSO_*`, `CAPTCHA_*`, `DEFAULT_LOCALE` / `SUPPORTED_LOCALES`, `SMTP_*` / `EMAIL_FROM`, `CRON_ENABLED`, `CLUSTER_WORKERS`, `APP_URL`, `STORAGE_DRIVER` / `S3_*`, `DOCS_ENABLED` / `DOCS_BASIC_AUTH_*`.
+See `.env.example`. Important: `APP_NAME` (display name for `/`, OpenAPI, Better Auth, emails), `BETTER_AUTH_*`, `TRUSTED_ORIGINS`, `DATABASE_URL` (Postgres), `ADMIN_*` / `USER_*`, `AUTH_GOOGLE_*` / `GOOGLE_*`, `AUTH_SSO_*`, `CAPTCHA_*`, `DEFAULT_LOCALE` / `SUPPORTED_LOCALES`, `SMTP_*` / `EMAIL_FROM`, `CRON_ENABLED`, `CLUSTER_WORKERS`, `APP_URL`, `STORAGE_DRIVER` / `S3_*`, `DOCS_ENABLED` / `DOCS_BASIC_AUTH_*`.
 
 **Do not commit secrets** — copy from `.env.example` only.
 
