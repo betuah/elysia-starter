@@ -9,10 +9,12 @@ import { elysiaOptions } from "./config/server"
 import { env } from "./env"
 import { t } from "./i18n"
 import { ok } from "./lib/response"
+import { audit } from "./modules/audit"
 import { authProviders } from "./modules/auth-providers"
 import { health } from "./modules/health"
 import { i18nRoutes } from "./modules/i18n"
 import { users } from "./modules/user"
+import { accessLog } from "./plugins/access-log"
 import { authPlugin } from "./plugins/auth"
 import { createCronPlugin } from "./cron"
 import { errors } from "./plugins/error"
@@ -33,6 +35,7 @@ const attachCron = shouldAttachCronToHttpApp({
 })
 
 const base = new Elysia(elysiaOptions)
+	.use(accessLog)
 	.use(security)
 	.use(
 		cors({
@@ -66,6 +69,7 @@ const base = new Elysia(elysiaOptions)
 	.use(health)
 	.use(i18nRoutes)
 	.use(users)
+	.use(audit)
 	.use(storageStatic)
 	.get(
 		"/",

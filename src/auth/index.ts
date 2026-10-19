@@ -10,6 +10,7 @@ import { createAuthDatabaseAdapter } from "../db/auth-adapter"
 import EmailVerificationEmail from "../emails/email-verification"
 import PasswordResetEmail from "../emails/password-reset"
 import { env } from "../env"
+import { recordAudit } from "../lib/audit"
 import { renderEmail, sendEmail } from "../lib/email"
 import {
 	buildCaptchaPluginOptions,
@@ -149,6 +150,23 @@ export const auth = betterAuth({
 		useSecureCookies: env.NODE_ENV === "production",
 		ipAddress: {
 			ipAddressHeaders: env.TRUST_PROXY ? ["x-forwarded-for", "x-real-ip"] : [],
+		},
+	},
+	databaseHooks: {
+		session: {
+			create: {
+				after: async (session) => {
+					await recordAudit({
+						actorUserId: session.userId,
+						action: "auth.session.create",
+						resourceType: "session",
+						resourceId: session.id,
+						metadata: { impersonatedBy: session.impersonatedBy ?? null },
+						ip: session.ipAddress ?? null,
+						userAgent: session.userAgent ?? null,
+					})
+				},
+			},
 		},
 	},
 	plugins: [

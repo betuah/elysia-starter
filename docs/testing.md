@@ -15,6 +15,7 @@ tests/
 ├── lib/{sanitize,response,storage}.test.ts
 ├── plugins/storage-static.test.ts
 └── modules/
+    ├── audit/http.test.ts
     ├── health/health.test.ts
     ├── i18n/locales.test.ts
     └── user/{http,ownership}.test.ts

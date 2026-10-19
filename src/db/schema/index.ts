@@ -1,5 +1,11 @@
+export { auditLog } from "./audit"
 export { account, session, ssoProvider, user, verification } from "./auth"
-export { accountRelations, sessionRelations, userRelations } from "./relations"
+export {
+	accountRelations,
+	auditLogRelations,
+	sessionRelations,
+	userRelations,
+} from "./relations"
 
 import { account, session, ssoProvider, user, verification } from "./auth"
 

@@ -35,6 +35,8 @@ export const en = {
 	"errors.fileUploadFailed": "File upload failed",
 	"errors.avatarInvalidType": "Avatar must be an image (png, jpeg, gif, or webp)",
 	"errors.avatarUploadFailed": "Avatar upload failed",
+	"errors.invalidDate": "Invalid date for {field}",
+	"errors.invalidDateRange": "`from` must be before or equal to `to`",
 
 	"health.ok": "ok",
 } as const

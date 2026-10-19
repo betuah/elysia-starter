@@ -12,9 +12,14 @@ import { adminAc, defaultStatements } from "better-auth/plugins/admin/access"
  * 2. Grant actions on `userRole` / `adminRole` via `ac.newRole({ ... })`.
  * 3. Export the role in `roleDefinitions` so the admin plugin and `hasPermission` see it.
  * 4. Restart the API; existing users keep their `role` column until you promote them.
+ *
+ * Built-in app resources beyond Better Auth defaults:
+ * - `audit: ["list"]` — read activity log (`GET /api/audit`)
  */
 const statement = {
 	...defaultStatements,
+	/** Activity / audit log (business events in `audit_log`). */
+	audit: ["list"],
 } as const
 
 export const ac = createAccessControl(statement)
@@ -25,6 +30,7 @@ const userRole = ac.newRole({})
 const adminRole = ac.newRole({
 	user: [...adminAc.statements.user],
 	session: [...adminAc.statements.session],
+	audit: ["list"],
 })
 
 export const roleDefinitions = {

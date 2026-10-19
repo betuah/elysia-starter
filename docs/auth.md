@@ -84,9 +84,18 @@ Route macro: `permission: { note: ["create"] }`.
 | **Ownership** | Does this row belong to the actor? | `assertOwnerOrPermission` in the service |
 
 - Regular user: `GET/PATCH /api/users/me` (own profile). Cannot list/ban/delete/set-role.
-- Admin: list, create/invite, set-role, ban/unban, delete.
+- Admin: list, create/invite, set-role, ban/unban, delete; list activity log (`audit: ["list"]` → `GET /api/audit`).
 
 Helper: `src/lib/ownership.ts`.
+
+## Audit vs access logging
+
+| Kind | Where | What |
+| --- | --- | --- |
+| **Audit** (activity log) | Postgres `audit_log` via `recordAudit()` | Business events: profile/avatar, admin user actions, session create (sign-in) |
+| **Access** | Structured console (`plugins/access-log`) | Every HTTP request method/path/status/duration — not written to DB (avoids flood). Disable with `ACCESS_LOG=false`. |
+
+Admin list: `GET /api/audit?page=&pageSize=&userId=&action=&from=&to=` (`permission: { audit: ["list"] }`).
 
 Pattern for a new resource module:
 

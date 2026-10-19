@@ -21,6 +21,8 @@ describe("auth.permissions", () => {
 		expect(hasPermission("admin", { user: ["ban"] })).toBe(true)
 		expect(hasPermission("admin", { user: ["delete"] })).toBe(true)
 		expect(hasPermission("admin", { session: ["revoke"] })).toBe(true)
+		expect(hasPermission("admin", { audit: ["list"] })).toBe(true)
+		expect(hasPermission("user", { audit: ["list"] })).toBe(false)
 	})
 
 	it("denies an unknown role", () => {

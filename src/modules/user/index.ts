@@ -64,7 +64,8 @@ export const users = new Elysia({
 	// POST
 	.post(
 		"/me/avatar",
-		({ user, body, locale }) => UserService.updateAvatar(user, body.file, locale),
+		({ user, body, request, locale }) =>
+			UserService.updateAvatar(user, body.file, request.headers, locale),
 		{
 			auth: true,
 			body: "user.AvatarBody",
@@ -132,17 +133,22 @@ export const users = new Elysia({
 		},
 	)
 	// PATCH
-	.patch("/me", ({ user, body, locale }) => UserService.updateMe(user, body, locale), {
-		auth: true,
-		body: "user.UpdateMe",
-		response: {
-			200: "user.Profile",
-			404: "common.Error",
-			422: "common.Error",
-			...guarded,
+	.patch(
+		"/me",
+		({ user, body, request, locale }) =>
+			UserService.updateMe(user, body, request.headers, locale),
+		{
+			auth: true,
+			body: "user.UpdateMe",
+			response: {
+				200: "user.Profile",
+				404: "common.Error",
+				422: "common.Error",
+				...guarded,
+			},
+			detail: { summary: "Update Profile" },
 		},
-		detail: { summary: "Update Profile" },
-	})
+	)
 	.patch(
 		"/:id/role",
 		({ params, body, user, request, locale }) =>

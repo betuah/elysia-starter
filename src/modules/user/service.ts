@@ -4,6 +4,7 @@ import { env } from "../../env"
 import type { Locale } from "../../i18n"
 import { t } from "../../i18n"
 import type { Actor } from "../../lib/actor"
+import { auditContextFromHeaders, recordAudit } from "../../lib/audit"
 import { failT } from "../../lib/error"
 import { assertOwnerOrPermission } from "../../lib/ownership"
 import { ok, paginatedPage, toLimitOffset } from "../../lib/response"
@@ -67,7 +68,12 @@ export abstract class UserService {
 		return ok(toPublicUser(row), { message: successMessage(locale) })
 	}
 
-	static async updateMe(actor: Actor, body: UserModel["updateMe"], locale: Locale = env.DEFAULT_LOCALE) {
+	static async updateMe(
+		actor: Actor,
+		body: UserModel["updateMe"],
+		headers: Headers,
+		locale: Locale = env.DEFAULT_LOCALE,
+	) {
 		const patch: { name?: string; image?: string | null; updatedAt: Date } = {
 			updatedAt: new Date(),
 		}
@@ -82,6 +88,17 @@ export abstract class UserService {
 
 		const updated = await userRepository.update(actor.id, patch)
 		if (!updated) failT(locale, 404, "NOT_FOUND", "errors.userNotFound")
+
+		const fields = Object.keys(body).filter((key) => body[key as keyof typeof body] !== undefined)
+		await recordAudit({
+			actorUserId: actor.id,
+			action: "user.profile.update",
+			resourceType: "user",
+			resourceId: actor.id,
+			metadata: { fields },
+			...auditContextFromHeaders(headers),
+		})
+
 		return ok(toPublicUser(updated), { message: successMessage(locale) })
 	}
 
@@ -91,7 +108,12 @@ export abstract class UserService {
 	 * Key is stable per user (`avatars/{userId}{ext}`) so re-uploads overwrite.
 	 * Does not use client presign.
 	 */
-	static async updateAvatar(actor: Actor, file: File, locale: Locale = env.DEFAULT_LOCALE) {
+	static async updateAvatar(
+		actor: Actor,
+		file: File,
+		headers: Headers,
+		locale: Locale = env.DEFAULT_LOCALE,
+	) {
 		const contentType = (file.type || "").toLowerCase()
 		if (!AVATAR_TYPES.has(contentType)) {
 			failT(locale, 422, "VALIDATION", "errors.avatarInvalidType")
@@ -117,6 +139,16 @@ export abstract class UserService {
 			updatedAt: new Date(),
 		})
 		if (!updated) failT(locale, 404, "NOT_FOUND", "errors.userNotFound")
+
+		await recordAudit({
+			actorUserId: actor.id,
+			action: "user.avatar.upload",
+			resourceType: "user",
+			resourceId: actor.id,
+			metadata: { contentType, filename: file.name },
+			...auditContextFromHeaders(headers),
+		})
+
 		return ok(toPublicUser(updated), { message: successMessage(locale) })
 	}
 
@@ -162,6 +194,16 @@ export abstract class UserService {
 
 		const row = await userRepository.findById(result.user.id)
 		if (!row) failT(locale, 404, "NOT_FOUND", "errors.userNotFound")
+
+		await recordAudit({
+			actorUserId: actor.id,
+			action: "user.create",
+			resourceType: "user",
+			resourceId: row.id,
+			metadata: { email: row.email, role: row.role },
+			...auditContextFromHeaders(headers),
+		})
+
 		return ok(toPublicUser(row), { message: successMessage(locale) })
 	}
 
@@ -187,6 +229,8 @@ export abstract class UserService {
 			}
 		}
 
+		const previousRole = current.role
+
 		await auth.api.setRole({
 			body: { userId: id, role },
 			headers,
@@ -194,6 +238,16 @@ export abstract class UserService {
 
 		const updated = await userRepository.findById(id)
 		if (!updated) failT(locale, 404, "NOT_FOUND", "errors.userNotFound")
+
+		await recordAudit({
+			actorUserId: actor.id,
+			action: "user.set_role",
+			resourceType: "user",
+			resourceId: id,
+			metadata: { from: previousRole, to: role },
+			...auditContextFromHeaders(headers),
+		})
+
 		return ok(toPublicUser(updated), { message: successMessage(locale) })
 	}
 
@@ -223,6 +277,19 @@ export abstract class UserService {
 
 		const updated = await userRepository.findById(id)
 		if (!updated) failT(locale, 404, "NOT_FOUND", "errors.userNotFound")
+
+		await recordAudit({
+			actorUserId: actor.id,
+			action: "user.ban",
+			resourceType: "user",
+			resourceId: id,
+			metadata: {
+				reason: body.reason ?? null,
+				banExpiresIn: body.banExpiresIn ?? null,
+			},
+			...auditContextFromHeaders(headers),
+		})
+
 		return ok(toPublicUser(updated), { message: successMessage(locale) })
 	}
 
@@ -246,6 +313,15 @@ export abstract class UserService {
 
 		const updated = await userRepository.findById(id)
 		if (!updated) failT(locale, 404, "NOT_FOUND", "errors.userNotFound")
+
+		await recordAudit({
+			actorUserId: actor.id,
+			action: "user.unban",
+			resourceType: "user",
+			resourceId: id,
+			...auditContextFromHeaders(headers),
+		})
+
 		return ok(toPublicUser(updated), { message: successMessage(locale) })
 	}
 
@@ -273,6 +349,15 @@ export abstract class UserService {
 		await auth.api.removeUser({
 			body: { userId: id },
 			headers,
+		})
+
+		await recordAudit({
+			actorUserId: actor.id,
+			action: "user.delete",
+			resourceType: "user",
+			resourceId: id,
+			metadata: { email: current.email, role: current.role },
+			...auditContextFromHeaders(headers),
 		})
 
 		return ok({ id, deleted: true as const }, { message: successMessage(locale) })

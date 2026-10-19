@@ -21,6 +21,8 @@ src/modules/user/
 ├── service.ts       # business logic → ./repository
 ├── model.ts
 └── index.ts         # routes
+
+src/modules/audit/   # activity log list (admin); writer is shared `src/lib/audit.ts`
 ```
 
 Simpler modules (health, i18n probe, auth-providers) may only need `index.ts`.
@@ -29,7 +31,7 @@ Simpler modules (health, i18n probe, auth-providers) may only need `index.ts`.
 
 | Kind | Location |
 | --- | --- |
-| Cross-cutting (response, error, ownership, sanitize, storage, email, actor) | `src/lib/` |
+| Cross-cutting (response, error, ownership, sanitize, storage, email, actor, audit) | `src/lib/` |
 | Domain-only helper | Next to the module (same folder or `src/modules/<feature>/…`) |
 
 ## Auth on routes

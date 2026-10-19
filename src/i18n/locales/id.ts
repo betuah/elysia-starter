@@ -37,6 +37,8 @@ export const id: Record<MessageKey, string> = {
 	"errors.fileUploadFailed": "Unggah berkas gagal",
 	"errors.avatarInvalidType": "Avatar harus berupa gambar (png, jpeg, gif, atau webp)",
 	"errors.avatarUploadFailed": "Unggah avatar gagal",
+	"errors.invalidDate": "Tanggal tidak valid untuk {field}",
+	"errors.invalidDateRange": "`from` harus sebelum atau sama dengan `to`",
 
 	"health.ok": "ok",
 }

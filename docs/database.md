@@ -21,10 +21,12 @@ bun run seed
 
 ## Schema layout
 
-- One **domain** per file under `src/db/schema/` (e.g. `auth.ts` for Better Auth tables).
+- One **domain** per file under `src/db/schema/` (e.g. `auth.ts` for Better Auth tables, `audit.ts` for activity log).
 - Shared column helpers in `columns.ts` (e.g. `timestampColumn`).
 - Relations in `relations.ts` (separate from table definitions).
 - Re-export from `schema/index.ts`. Do **not** dump unrelated tables into one mega-schema file.
+
+Activity events are written with `recordAudit()` (`src/lib/audit.ts`) into `audit_log`; listed via `GET /api/audit` (admin). See [auth.md — Audit vs access logging](./auth.md#audit-vs-access-logging).
 
 ## Why repository lives in the module
 
