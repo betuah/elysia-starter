@@ -1,6 +1,6 @@
 # Docker
 
-Approach: **multi-stage compile binary** → `gcr.io/distroless/base-debian12`. The `postgres` driver is `--external` and production `node_modules` are copied (full bundling often breaks DB drivers). Folder `drizzle/` is included so boot migrations work.
+Approach: **multi-stage compile binary** → `gcr.io/distroless/base-debian12`. The `postgres` driver is `--external` and production `node_modules` are copied (full bundling often breaks DB drivers). Folder `migration/` is included so boot migrations work.
 
 ```bash
 docker build -t elysia-starter .

@@ -13,7 +13,7 @@ RUN bun install --frozen-lockfile
 
 COPY tsconfig.json drizzle.config.ts ./
 COPY src ./src
-COPY drizzle ./drizzle
+COPY migration ./migration
 
 ENV NODE_ENV=production
 
@@ -36,7 +36,7 @@ WORKDIR /app
 COPY --from=build /app/server /app/server
 COPY --from=build /app/node_modules /app/node_modules
 COPY --from=build /app/package.json /app/package.json
-COPY --from=build /app/drizzle /app/drizzle
+COPY --from=build /app/migration /app/migration
 
 ENV NODE_ENV=production
 ENV PORT=3000

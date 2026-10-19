@@ -110,7 +110,7 @@ src/
 │   ├── health/, auth-providers/, i18n/
 ├── plugins/                 # auth, error, i18n, openapi, security, storage-static
 └── scripts/seed.ts
-drizzle/                     # Postgres migrations
+migration/                   # Postgres migrations
 tests/modules/<feature>/
 docs/                        # detailed guides (see TOC above)
 .cursor/rules/               # AI agent conventions

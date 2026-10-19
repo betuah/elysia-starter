@@ -7,7 +7,7 @@ This starter is **Postgres only**. SQLite / MongoDB were removed.
 | Required env | `DATABASE_URL` (app / seed / Docker) |
 | Auth adapter | `drizzleAdapter(..., { provider: "pg" })` |
 | Schema | `src/db/schema/` (domain tables) |
-| Migrations | `drizzle/` |
+| Migrations | `migration/` |
 | App user queries | `src/modules/user/repository.ts` → Drizzle |
 | Tests | **PGlite** in-memory (`NODE_ENV=test` / `USE_PGLITE=true`) — no Postgres server |
 
