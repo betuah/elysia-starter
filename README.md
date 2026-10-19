@@ -6,7 +6,7 @@ Starter API Bun + Elysia with Better Auth, role ACL, ownership (“own data only
 
 Capabilities already in this starter (details in linked docs):
 
-- **Auth** — local email/password, email verification, forgot/reset, Google sign-in (+ One Tap), SSO (OIDC-compatible, env-gated via `AUTH_SSO_*`), optional captcha (`CAPTCHA_ENABLED` + Turnstile/reCAPTCHA/hCaptcha/CaptchaFox), session cookie + bearer (CSRF via Better Auth `trustedOrigins`), admin create/ban/delete/set-role; `GET /api/auth/providers` — [docs/auth.md](docs/auth.md)
+- **Auth** — local email/password, email verification, forgot/reset, Google sign-in (+ One Tap), SSO (OIDC-compatible, env-gated via `AUTH_SSO_*`), optional captcha (`CAPTCHA_ENABLED` + Turnstile/reCAPTCHA/hCaptcha/CaptchaFox), session cookie + bearer (CSRF via Better Auth `trustedOrigins`), admin create (password + `autoConfirm`) / invite (set-password email) / ban / delete / set-role; `GET /api/auth/providers` — [docs/auth.md](docs/auth.md)
 - **Permission-based & role-based ACL** — roles `user` \| `admin` in `src/auth/permissions.ts`; route macros `auth` / `permission` inject `user` (use `user.id` — no manual cookie/bearer parse); ownership via `assertOwnerOrPermission` — [docs/auth.md](docs/auth.md#route-macros-and-request-context)
 - **Audit / activity log** — business events in Postgres (`audit_log`); admin `GET /api/audit`; HTTP access log is structured console only — [docs/auth.md](docs/auth.md#audit-vs-access-logging)
 - **File upload** — shared `getStorage()`: `local` or S3-compatible (MinIO / Wasabi / RustFS / AWS); server-mediated `put()`; optional S3 put/get presign; avatar example `POST /api/users/me/avatar` — [docs/storage.md](docs/storage.md)

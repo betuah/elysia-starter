@@ -53,10 +53,21 @@ export const UserModel = {
 		role: t.Union(roleNames.map((role) => t.Literal(role))),
 	}),
 	createUser: t.Object({
-		name: t.String({ minLength: 1, maxLength: 120 }),
 		email: t.String({ format: "email", maxLength: 255 }),
 		/** Never HTML-escape credentials (`&` → `&amp;` would corrupt passwords). */
 		password: t.String({ minLength: 8, maxLength: 128, trusted: true }),
+		name: t.Optional(t.String({ minLength: 1, maxLength: 120 })),
+		role: t.Optional(t.Union(roleNames.map((role) => t.Literal(role)))),
+		/**
+		 * When true, create with `emailVerified: true` (skip verification requirement).
+		 * Default false — user must verify email before sign-in if REQUIRE_EMAIL_VERIFICATION.
+		 */
+		autoConfirm: t.Optional(t.Boolean()),
+	}),
+	/** Admin invite — no password; user sets password via invite email link. */
+	inviteUser: t.Object({
+		email: t.String({ format: "email", maxLength: 255 }),
+		name: t.Optional(t.String({ minLength: 1, maxLength: 120 })),
 		role: t.Optional(t.Union(roleNames.map((role) => t.Literal(role)))),
 	}),
 	banBody: t.Object({

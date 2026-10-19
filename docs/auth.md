@@ -84,7 +84,7 @@ Route macro: `permission: { note: ["create"] }`.
 | **Ownership** | Does this row belong to the actor? | `assertOwnerOrPermission` in the service |
 
 - Regular user: `GET/PATCH /api/users/me` (own profile). Cannot list/ban/delete/set-role.
-- Admin: list, create/invite, set-role, ban/unban, delete; list activity log (`audit: ["list"]` → `GET /api/audit`).
+- Admin: list, create (password) / invite (email), set-role, ban/unban, delete; list activity log (`audit: ["list"]` → `GET /api/audit`).
 
 Helper: `src/lib/ownership.ts`.
 
@@ -115,7 +115,8 @@ assertOwnerOrPermission(actor, row.authorId, { note: ["moderate"] })
 | Session cookie + bearer (`set-auth-token`) | ✅ | `TRUSTED_ORIGINS` must include the client origin (CSRF/origin checks — [security.md](./security.md#csrf-better-auth)) |
 | Forgot / reset password | ✅ | React Email → SMTP (`EMAIL_FROM` + `SMTP_*`) or console mock |
 | Email verification | ✅ | React Email; `sendOnSignUp`; optional `REQUIRE_EMAIL_VERIFICATION=true` |
-| Invite / create user | ✅ | `POST /api/users` (admin) → Better Auth `createUser` |
+| Create user (password) | ✅ | `POST /api/users` — email + password; optional `autoConfirm` → `emailVerified` |
+| Invite user (no password) | ✅ | `POST /api/users/invite` — create without credentials + invite email (set-password link) |
 | Promote / demote admin | ✅ | `PATCH /api/users/:id/role` |
 | Ban / unban | ✅ | `POST /api/users/:id/ban|unban` (+ `/api/auth/admin/*`) |
 | Delete user | ✅ | `DELETE /api/users/:id` |
@@ -140,6 +141,56 @@ assertOwnerOrPermission(actor, row.authorId, { note: ["moderate"] })
 - Prefer `AUTH_SSO_*`. Legacy `AUTH_OIDC_*` names still work as a silent fallback if `AUTH_SSO_*` is unset.
 - Discovery: set `AUTH_SSO_ISSUER` and/or `AUTH_SSO_DISCOVERY_URL`.
 - Schema: SSO adds table `ssoProvider`. After pull, run `bun run db:migrate` (or restart with `RUN_MIGRATIONS=true`).
+
+## Admin: create user vs invite
+
+UI should offer **two** admin flows (both need `user: ["create"]`):
+
+### A — Direct create — `POST /api/users`
+
+Admin sets email + password (and optional name / role).
+
+```json
+{
+  "email": "new@example.com",
+  "password": "SecurePass1!",
+  "name": "New User",
+  "role": "user",
+  "autoConfirm": true
+}
+```
+
+| Field | Notes |
+| --- | --- |
+| `password` | Required (min 8). |
+| `autoConfirm` | Optional. `true` → Better Auth `createUser` with `data.emailVerified: true` (skips verification / works with `REQUIRE_EMAIL_VERIFICATION`). Default / omit → `emailVerified: false`. |
+| `name` | Optional; defaults to the email local-part. |
+
+No invite email is sent — share credentials out of band if needed.
+
+### B — Invite — `POST /api/users/invite`
+
+Admin does **not** set a password. The API creates the user without a credential account, then emails a **set-password** link using the same Better Auth verification token as password reset (`reset-password:{token}`). Completing the link creates the credential account via Better Auth’s `resetCredentialPassword`.
+
+```json
+{
+  "email": "invitee@example.com",
+  "name": "Invitee",
+  "role": "user"
+}
+```
+
+**Invite email link (backend):**
+
+`{BETTER_AUTH_URL}/api/auth/reset-password/{token}?callbackURL={encoded APP_URL/reset-password}`
+
+**Frontend route (document for UI):** `{APP_URL}/reset-password`
+
+1. User clicks the email link → Better Auth validates the token and **redirects** to `{APP_URL}/reset-password?token=…` (or `?error=INVALID_TOKEN`).
+2. Frontend reads `token` and calls `POST /api/auth/reset-password` with `{ token, newPassword }`.
+3. Ensure `APP_URL`’s origin is listed in `TRUSTED_ORIGINS` (Better Auth `originCheck` on `callbackURL`).
+
+There is no separate Better Auth “admin invite user” API outside the [organization plugin](https://better-auth.com/docs/plugins/organization) (org membership). This starter uses admin `createUser` (no password) + reset-password token + React Email invite template (`src/emails/user-invite.tsx`).
 
 ## Captcha
 

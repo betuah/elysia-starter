@@ -3,6 +3,7 @@ import * as React from "react"
 
 import EmailVerificationEmail from "../../src/emails/email-verification"
 import PasswordResetEmail from "../../src/emails/password-reset"
+import UserInviteEmail from "../../src/emails/user-invite"
 import { isSmtpConfigured, renderEmail, sendEmail } from "../../src/lib/email"
 
 describe("lib.email", () => {
@@ -53,5 +54,21 @@ describe("lib.email", () => {
 		expect(html).toContain("Hi Bob")
 		expect(html).toContain('href="https://example.com/verify?token=xyz"')
 		expect(html).toContain("Verify your email")
+	})
+
+	it("renders user-invite React email", async () => {
+		const html = await renderEmail(
+			React.createElement(UserInviteEmail, {
+				name: "Carol",
+				url: "https://example.com/api/auth/reset-password/tok?callbackURL=https%3A%2F%2Fexample.com%2Freset-password",
+				appName: "Demo App",
+				inviterName: "Admin",
+			}),
+		)
+		expect(html).toContain("Hi Carol")
+		expect(html).toContain("Demo App")
+		expect(html).toContain("from Admin")
+		expect(html).toContain("Accept invitation")
+		expect(html).toContain("reset-password/tok")
 	})
 })

@@ -34,6 +34,7 @@ export const users = new Elysia({
 		"user.AvatarBody": UserModel.avatarBody,
 		"user.SetRole": UserModel.setRole,
 		"user.Create": UserModel.createUser,
+		"user.Invite": UserModel.inviteUser,
 		"user.Ban": UserModel.banBody,
 		"user.IdParams": UserModel.idParams,
 		"user.Deleted": UserModel.deleted,
@@ -93,14 +94,43 @@ export const users = new Elysia({
 			body: "user.Create",
 			response: {
 				200: "user.Profile",
+				409: "common.Error",
 				422: "common.Error",
 				500: "common.Error",
 				...guarded,
 			},
 			detail: {
-				summary: "Create or Invite new User (Admin)",
+				summary: "Create user with password (Admin)",
 				description:
-					"Uses Better Auth admin createUser. No invite email is sent unless you wire one; share credentials out of band or extend with sendEmail.",
+					"Direct create via Better Auth admin `createUser` (email + password). " +
+					"Set `autoConfirm: true` to mark `emailVerified` so verification is not required. " +
+					"For invite-without-password use `POST /api/users/invite`.",
+			},
+		},
+	)
+	.post(
+		"/invite",
+		({ body, user, request, locale }) =>
+			UserService.inviteUser(user, body, request.headers, locale),
+		{
+			permission: { user: ["create"] },
+			body: "user.Invite",
+			response: {
+				200: "user.Profile",
+				409: "common.Error",
+				422: "common.Error",
+				500: "common.Error",
+				...guarded,
+			},
+			detail: {
+				summary: "Invite user by email (Admin)",
+				description:
+					"Creates a user without a password and emails a set-password link " +
+					"(Better Auth reset-password token + React Email invite template). " +
+					"Frontend route: `{APP_URL}/reset-password` — after the email link, " +
+					"Better Auth redirects with `?token=` (or `?error=INVALID_TOKEN`); " +
+					"complete with `POST /api/auth/reset-password` `{ token, newPassword }`. " +
+					"Ensure `APP_URL` origin is in `TRUSTED_ORIGINS`. Permission: `user:create`.",
 			},
 		},
 	)

@@ -21,6 +21,8 @@ export const en = {
 	"errors.cannotCreateUsers": "You cannot create users",
 	"errors.unknownRole": "Unknown role",
 	"errors.couldNotCreateUser": "Could not create user",
+	"errors.couldNotInviteUser": "Could not invite user",
+	"errors.userAlreadyExists": "A user with this email already exists",
 	"errors.cannotChangeRoles": "You cannot change roles",
 	"errors.adminMustRemain": "At least one administrator must remain",
 	"errors.cannotBanUsers": "You cannot ban users",

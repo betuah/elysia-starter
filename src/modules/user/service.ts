@@ -1,10 +1,15 @@
+import { generateId } from "@better-auth/core/utils/id"
+import * as React from "react"
+
 import { auth } from "../../auth"
 import { hasPermission, isRoleName, permissionsFor, type RoleName } from "../../auth/permissions"
+import UserInviteEmail from "../../emails/user-invite"
 import { env } from "../../env"
 import type { Locale } from "../../i18n"
 import { t } from "../../i18n"
 import type { Actor } from "../../lib/actor"
 import { auditContextFromHeaders, recordAudit } from "../../lib/audit"
+import { renderEmail, sendEmail } from "../../lib/email"
 import { failT } from "../../lib/error"
 import { assertOwnerOrPermission } from "../../lib/ownership"
 import { ok, paginatedPage, toLimitOffset } from "../../lib/response"
@@ -15,6 +20,79 @@ import type { UserModel } from "./model"
 import { userRepository, type UserRecord } from "./repository"
 
 const AVATAR_TYPES = new Set(["image/png", "image/jpeg", "image/jpg", "image/gif", "image/webp"])
+
+/**
+ * Frontend path for invite / set-password after Better Auth redirects with `?token=`.
+ * Full URL: `{APP_URL}/reset-password` — APP_URL origin must be in TRUSTED_ORIGINS.
+ */
+export const INVITE_SET_PASSWORD_PATH = "/reset-password"
+
+function displayNameFromEmail(email: string): string {
+	const local = email.split("@")[0]?.trim()
+	return local && local.length > 0 ? local : "User"
+}
+
+function resolveUserName(name: string | undefined, email: string): string {
+	if (name !== undefined) {
+		const cleaned = sanitizeText(name)
+		if (cleaned.length === 0) return displayNameFromEmail(email)
+		return cleaned
+	}
+	return displayNameFromEmail(email)
+}
+
+function isDuplicateUserError(error: unknown): boolean {
+	if (!error || typeof error !== "object") return false
+	const record = error as { body?: { code?: string }; message?: string; code?: string }
+	const code = record.body?.code ?? record.code ?? ""
+	const message = typeof record.message === "string" ? record.message : ""
+	return (
+		code === "USER_ALREADY_EXISTS_USE_ANOTHER_EMAIL" ||
+		code === "USER_ALREADY_EXISTS" ||
+		/already exists/i.test(message)
+	)
+}
+
+/**
+ * Issue a Better Auth reset-password verification token and email an invite link.
+ * Same token format as `requestPasswordReset` — frontend completes via
+ * `POST /api/auth/reset-password` with `{ token, newPassword }` after the
+ * callback lands on `{APP_URL}/reset-password?token=…`.
+ */
+async function sendInviteSetPasswordEmail(input: {
+	userId: string
+	email: string
+	name: string
+	inviterName?: string
+}) {
+	const ctx = await auth.$context
+	/** Align with Better Auth default (`resetPasswordTokenExpiresIn` ≈ 1 hour). */
+	const expiresInSec = 60 * 60
+	const token = generateId(24)
+	await ctx.internalAdapter.createVerificationValue({
+		value: input.userId,
+		identifier: `reset-password:${token}`,
+		expiresAt: new Date(Date.now() + expiresInSec * 1000),
+	})
+
+	const redirectTo = `${env.APP_URL.replace(/\/+$/, "")}${INVITE_SET_PASSWORD_PATH}`
+	const url = `${ctx.baseURL}/reset-password/${token}?callbackURL=${encodeURIComponent(redirectTo)}`
+
+	const html = await renderEmail(
+		React.createElement(UserInviteEmail, {
+			name: input.name,
+			url,
+			appName: env.APP_NAME,
+			...(input.inviterName ? { inviterName: input.inviterName } : {}),
+		}),
+	)
+	await sendEmail({
+		to: input.email,
+		subject: `You're invited to ${env.APP_NAME}`,
+		html,
+		text: `Hi ${input.name},\n\nYou have been invited to join ${env.APP_NAME}. Set your password: ${url}\n\nIf you were not expecting this, ignore this email.`,
+	})
+}
 
 /**
  * Public user DTO — response “sanitize”: omit secrets (password/hash/token never included).
@@ -180,15 +258,28 @@ export abstract class UserService {
 		const role = body.role ?? "user"
 		if (!isRoleName(role)) failT(locale, 422, "VALIDATION", "errors.unknownRole")
 
-		const result = await auth.api.createUser({
-			body: {
-				name: sanitizeText(body.name),
-				email: body.email.trim().toLowerCase(),
-				password: body.password,
-				role,
-			},
-			headers,
-		})
+		const email = body.email.trim().toLowerCase()
+		const autoConfirm = body.autoConfirm === true
+		const name = resolveUserName(body.name, email)
+
+		let result: Awaited<ReturnType<typeof auth.api.createUser>>
+		try {
+			result = await auth.api.createUser({
+				body: {
+					name,
+					email,
+					password: body.password,
+					role,
+					...(autoConfirm ? { data: { emailVerified: true } } : {}),
+				},
+				headers,
+			})
+		} catch (error) {
+			if (isDuplicateUserError(error)) {
+				failT(locale, 409, "CONFLICT", "errors.userAlreadyExists")
+			}
+			throw error
+		}
 
 		if (!result?.user) failT(locale, 500, "INTERNAL", "errors.couldNotCreateUser")
 
@@ -200,7 +291,79 @@ export abstract class UserService {
 			action: "user.create",
 			resourceType: "user",
 			resourceId: row.id,
-			metadata: { email: row.email, role: row.role },
+			metadata: { email: row.email, role: row.role, autoConfirm, method: "direct" },
+			...auditContextFromHeaders(headers),
+		})
+
+		return ok(toPublicUser(row), { message: successMessage(locale) })
+	}
+
+	/**
+	 * Invite a user (no admin-set password). Creates an account without credentials,
+	 * then emails a Better Auth set-password link (same verification as password reset).
+	 */
+	static async inviteUser(
+		actor: Actor,
+		body: UserModel["inviteUser"],
+		headers: Headers,
+		locale: Locale = env.DEFAULT_LOCALE,
+	) {
+		if (!hasPermission(actor.role, { user: ["create"] })) {
+			failT(locale, 403, "FORBIDDEN", "errors.cannotCreateUsers")
+		}
+
+		const role = body.role ?? "user"
+		if (!isRoleName(role)) failT(locale, 422, "VALIDATION", "errors.unknownRole")
+
+		const email = body.email.trim().toLowerCase()
+		const name = resolveUserName(body.name, email)
+
+		let result: Awaited<ReturnType<typeof auth.api.createUser>>
+		try {
+			result = await auth.api.createUser({
+				body: {
+					name,
+					email,
+					role,
+					// No password — credential account is created when the invitee sets one
+					// via Better Auth reset-password (`resetCredentialPassword`).
+				},
+				headers,
+			})
+		} catch (error) {
+			if (isDuplicateUserError(error)) {
+				failT(locale, 409, "CONFLICT", "errors.userAlreadyExists")
+			}
+			throw error
+		}
+
+		if (!result?.user) failT(locale, 500, "INTERNAL", "errors.couldNotInviteUser")
+
+		const row = await userRepository.findById(result.user.id)
+		if (!row) failT(locale, 404, "NOT_FOUND", "errors.userNotFound")
+
+		try {
+			await sendInviteSetPasswordEmail({
+				userId: row.id,
+				email: row.email,
+				name: row.name,
+				inviterName: actor.name,
+			})
+		} catch {
+			failT(locale, 500, "INTERNAL", "errors.couldNotInviteUser")
+		}
+
+		await recordAudit({
+			actorUserId: actor.id,
+			action: "user.invite",
+			resourceType: "user",
+			resourceId: row.id,
+			metadata: {
+				email: row.email,
+				role: row.role,
+				method: "invite",
+				setPasswordPath: INVITE_SET_PASSWORD_PATH,
+			},
 			...auditContextFromHeaders(headers),
 		})
 

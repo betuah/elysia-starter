@@ -1,4 +1,4 @@
-import { afterAll, describe, expect, it } from "bun:test"
+import { afterAll, describe, expect, it, spyOn } from "bun:test"
 import { rm } from "node:fs/promises"
 
 import { app } from "../../../src/app"
@@ -122,7 +122,7 @@ describe("module.user http", () => {
 		expect(served.headers.get("content-type")).toContain("image/png")
 	})
 
-	it("lets an admin create a user", async () => {
+	it("lets an admin create a user with autoConfirm", async () => {
 		const admin = await signUp("Creator", `creator-${stamp}@example.com`)
 		await userRepository.update(admin.user.id, { role: "admin" })
 
@@ -133,15 +133,32 @@ describe("module.user http", () => {
 				authorization: `Bearer ${admin.token}`,
 			},
 			body: JSON.stringify({
-				name: "Invited",
-				email: `invited-${stamp}@example.com`,
-				password: "InvitePass1!",
+				name: "Created",
+				email: `created-${stamp}@example.com`,
+				password: "CreatePass1!",
 				role: "user",
+				autoConfirm: true,
 			}),
 		})
 		expect(created.response.status).toBe(200)
-		expect(created.body.data.email).toBe(`invited-${stamp}@example.com`)
+		expect(created.body.data.email).toBe(`created-${stamp}@example.com`)
 		expect(created.body.data.role).toBe("user")
+		expect(created.body.data.emailVerified).toBe(true)
+
+		const unverified = await request("/api/users", {
+			method: "POST",
+			headers: {
+				"content-type": "application/json",
+				authorization: `Bearer ${admin.token}`,
+			},
+			body: JSON.stringify({
+				email: `unverified-${stamp}@example.com`,
+				password: "CreatePass1!",
+				autoConfirm: false,
+			}),
+		})
+		expect(unverified.response.status).toBe(200)
+		expect(unverified.body.data.emailVerified).toBe(false)
 
 		const asMember = await signUp("Nope", `nope-${stamp}@example.com`)
 		const forbidden = await request("/api/users", {
@@ -153,10 +170,72 @@ describe("module.user http", () => {
 			body: JSON.stringify({
 				name: "X",
 				email: `x-${stamp}@example.com`,
-				password: "InvitePass1!",
+				password: "CreatePass1!",
 			}),
 		})
 		expect(forbidden.response.status).toBe(403)
+	})
+
+	it("lets an admin invite a user without password and sends invite email", async () => {
+		const admin = await signUp("Inviter", `inviter-${stamp}@example.com`)
+		await userRepository.update(admin.user.id, { role: "admin" })
+
+		const log = spyOn(console, "log").mockImplementation(() => {})
+		try {
+			const invited = await request("/api/users/invite", {
+				method: "POST",
+				headers: {
+					"content-type": "application/json",
+					authorization: `Bearer ${admin.token}`,
+				},
+				body: JSON.stringify({
+					email: `invitee-${stamp}@example.com`,
+					name: "Invitee",
+					role: "user",
+				}),
+			})
+			expect(invited.response.status).toBe(200)
+			expect(invited.body.data.email).toBe(`invitee-${stamp}@example.com`)
+			expect(invited.body.data.role).toBe("user")
+			expect(invited.body.data.emailVerified).toBe(false)
+
+			const inviteMail = log.mock.calls
+				.filter((call) => call[0] === "[email:mock]")
+				.map((call) => call[1] as Record<string, unknown>)
+				.find((payload) => payload.to === `invitee-${stamp}@example.com`)
+			expect(inviteMail).toBeDefined()
+			expect(String(inviteMail?.subject)).toContain("invited")
+			// Prefer `text` — mock `html` is truncated to 500 chars and may omit the path.
+			expect(String(inviteMail?.text ?? "")).toContain("reset-password")
+
+			const duplicate = await request("/api/users/invite", {
+				method: "POST",
+				headers: {
+					"content-type": "application/json",
+					authorization: `Bearer ${admin.token}`,
+				},
+				body: JSON.stringify({
+					email: `invitee-${stamp}@example.com`,
+				}),
+			})
+			expect(duplicate.response.status).toBe(409)
+			expect(duplicate.body.code).toBe("CONFLICT")
+
+			const asMember = await signUp("MemberInvite", `member-invite-${stamp}@example.com`)
+			const forbidden = await request("/api/users/invite", {
+				method: "POST",
+				headers: {
+					"content-type": "application/json",
+					authorization: `Bearer ${asMember.token}`,
+				},
+				body: JSON.stringify({
+					email: `blocked-invite-${stamp}@example.com`,
+				}),
+			})
+			expect(forbidden.response.status).toBe(403)
+		} finally {
+			log.mockRestore()
+		}
 	})
 
 	it("lets an admin ban, unban, and delete a user; blocks self-ban and self-delete", async () => {

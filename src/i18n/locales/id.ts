@@ -23,6 +23,8 @@ export const id: Record<MessageKey, string> = {
 	"errors.cannotCreateUsers": "Anda tidak dapat membuat pengguna",
 	"errors.unknownRole": "Peran tidak dikenal",
 	"errors.couldNotCreateUser": "Tidak dapat membuat pengguna",
+	"errors.couldNotInviteUser": "Tidak dapat mengundang pengguna",
+	"errors.userAlreadyExists": "Pengguna dengan email ini sudah ada",
 	"errors.cannotChangeRoles": "Anda tidak dapat mengubah peran",
 	"errors.adminMustRemain": "Setidaknya satu administrator harus tetap ada",
 	"errors.cannotBanUsers": "Anda tidak dapat mem-ban pengguna",
